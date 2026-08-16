@@ -28,7 +28,7 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; height: 100%; background: #1d2b12; overflow: hidden;
-    font-family: 'Poster Text', system-ui, sans-serif;
+    font-family: 'Poster Display', system-ui, sans-serif;
     /* A kids' game gets poked at, hard. Stop text selection turning every
        mis-tap into a highlighted blue smear. */
     user-select: none; -webkit-user-select: none;
@@ -74,6 +74,9 @@
   try {
     const { startMenu } = await import('./src/game/menu.js');
     await startMenu(document.getElementById('host'));
+    // After the menu, so the first thing seen is the game and not a dialog.
+    const { initInstallPrompt } = await import('./src/game/install.js');
+    initInstallPrompt();
   } catch (e) {
     const el = document.getElementById('err');
     el.style.display = 'block';

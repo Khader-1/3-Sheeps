@@ -318,7 +318,10 @@ export function panel(x, y, w, h, { fill = CREAM, opacity = 0.96, rx = 22 } = {}
 export function label(text, x, y, { size = 34, fill = INK, weight = 700, anchor = 'middle' } = {}) {
   const t = svgEl('text', {
     x, y, 'text-anchor': anchor, fill, 'font-size': size,
-    'font-family': "'Poster Text', sans-serif", 'font-weight': weight,
+    // Baloo Bhaijaan 2 — rounder and heavier than Cairo, and the games want
+    // to read as a toy rather than a document. Cairo is still the text face
+    // for the poster credits, where it has to stay quiet.
+    'font-family': "'Poster Display', sans-serif", 'font-weight': weight,
     direction: 'rtl', 'unicode-bidi': 'isolate',
   });
   t.textContent = text;
