@@ -34,6 +34,10 @@ export const meta = {
 
 const TRIES = 3;
 
+// Unique per build: replaying makes new defs, and a repeated id would resolve
+// to the stale node left behind by the previous round.
+let flueUid = 0;
+
 // The flue walls, found by scanning the set: dark verticals at x=449 and 884.
 // He is fitted to them by measurement rather than by a guessed height — the
 // point of the pose is that his hands and feet are ON the walls.
@@ -117,10 +121,34 @@ export async function start(ctx) {
   // ------------------------------------------------------------- the fire
   // Laid at the bottom of the shaft and drawn upward, so its height is the
   // reach. Nothing about it is attached to the wolf.
-  const fireLayer = svgEl('g');
+  //
+  // All of it is built around SHAFT_CX and clipped to the flue. The fire was
+  // written around x=640 — the centre of the design box, not the centre of the
+  // shaft, which measurement put at 666.5 — so every part of it sat 26 units
+  // left of where it belonged, and the glow was 860 wide against a 435-wide
+  // shaft. Light was pouring straight through the brickwork.
+  const FLUE_W = WALL_R - WALL_L;
+  const clipId = `flue-clip-${++flueUid}`;
+  const defs = svgEl('defs');
+  const clip = svgEl('clipPath', { id: clipId });
+  clip.appendChild(svgEl('rect', { x: WALL_L, y: 0, width: FLUE_W, height: H }));
+  defs.appendChild(clip);
+  layers.world.appendChild(defs);
+
+  // Soft-edged, because it is light rather than an object: a flat ellipse
+  // meeting the wall dead-on reads as a painted oval.
+  const gradId = `flue-glow-${flueUid}`;
+  const grad = svgEl('radialGradient', { id: gradId });
+  grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#ffb42e', 'stop-opacity': 1 }));
+  grad.appendChild(svgEl('stop', { offset: '55%', 'stop-color': '#ff7a18', 'stop-opacity': 0.55 }));
+  grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#ff7a18', 'stop-opacity': 0 }));
+  defs.appendChild(grad);
+
+  const fireLayer = svgEl('g', { 'clip-path': `url(#${clipId})` });
   layers.fx.appendChild(fireLayer);
   const glow = svgEl('ellipse', {
-    cx: 640, cy: FIRE_Y, rx: 430, ry: 96, fill: '#ff7a18', opacity: 0.14,
+    cx: SHAFT_CX, cy: FIRE_Y, rx: FLUE_W / 2, ry: 96,
+    fill: `url(#${gradId})`, opacity: 0.14, 'clip-path': `url(#${clipId})`,
   });
   layers.world.appendChild(glow);
 
@@ -137,7 +165,7 @@ export async function start(ctx) {
     ];
     for (const t of tongues) {
       const h = height * t.s;
-      const cx = 640 + t.dx;
+      const cx = SHAFT_CX + t.dx;
       fireLayer.appendChild(svgEl('path', {
         d: `M ${cx - t.w / 2} ${FIRE_Y}` +
            ` C ${cx - t.w * 0.62} ${FIRE_Y - h * 0.45}` +
@@ -150,7 +178,7 @@ export async function start(ctx) {
     for (let i = 0; i < 7; i++) {
       const f = ((Math.sin(i * 31.7) * 4310.1) % 1 + 1) % 1;
       fireLayer.appendChild(svgEl('circle', {
-        cx: 640 + (f - 0.5) * 420, cy: FIRE_Y - height * (0.85 + f * 0.5),
+        cx: SHAFT_CX + (f - 0.5) * (FLUE_W - 30), cy: FIRE_Y - height * (0.85 + f * 0.5),
         r: 3 + f * 5, fill: '#ffd23f', opacity: 0.8,
       }));
     }
