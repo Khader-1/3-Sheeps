@@ -1,0 +1,14 @@
+{
+  "name": "sheeps",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "الخراف الثلاثة والذئب الماكر — poster, promo, film, game, book pipeline",
+  "scripts": {
+    "poster": "node tools/build.mjs poster",
+    "preview": "node tools/serve.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

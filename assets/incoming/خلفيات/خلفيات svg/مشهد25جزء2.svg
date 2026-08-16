@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Moho 14.3 build 20241125 -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Frame_0" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280px" height="720px">
+<g id="Layer_1">
+<linearGradient id="c64ef928-204c-4c8f-a31d-05627a1d3503_0" x1="43.06%" y1="121.93%" x2="58.74%" y2="-14.63%">
+<stop offset="0.00%" style="stop-color:rgb(255,100,6);stop-opacity:1.00" />
+<stop offset="50.20%" style="stop-color:rgb(18,7,0);stop-opacity:1.00" />
+</linearGradient>
+<path id="S1" fill="url(#c64ef928-204c-4c8f-a31d-05627a1d3503_0)" fill-rule="evenodd" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 1320.270 -287.311 C 1320.226 -287.285 884.397 -28.394 884.354 -28.368 C 884.352 -28.253 872.492 1119.713 872.491 1119.827 C 872.536 1119.845 1327.684 1292.794 1327.729 1292.811 C 1327.729 1292.653 1320.271 -287.153 1320.270 -287.311 Z"/>
+</g>
+<g id="Layer_2">
+<linearGradient id="89ff6f14-5adf-4e66-aa0b-02c601456833_0" x1="48.33%" y1="114.99%" x2="51.17%" y2="-18.46%">
+<stop offset="0.00%" style="stop-color:rgb(255,100,6);stop-opacity:1.00" />
+<stop offset="50.59%" style="stop-color:rgb(18,7,0);stop-opacity:1.00" />
+</linearGradient>
+<path id="S1" fill="url(#89ff6f14-5adf-4e66-aa0b-02c601456833_0)" fill-rule="evenodd" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 1.186 -323.848 C 1.231 -323.820 451.232 -43.632 451.277 -43.604 C 451.277 -43.483 451.277 1168.826 451.277 1168.948 C 451.232 1168.960 1.231 1298.500 1.186 1298.513 C 1.186 1298.351 1.186 -323.686 1.186 -323.848 Z"/>
+</g>
+<g id="Layer_3">
+<linearGradient id="c25a56d1-f00d-4e48-a393-04e51d452f5d_0" x1="61.67%" y1="134.48%" x2="48.50%" y2="-46.82%">
+<stop offset="0.00%" style="stop-color:rgb(255,100,6);stop-opacity:1.00" />
+<stop offset="49.02%" style="stop-color:rgb(18,7,0);stop-opacity:1.00" />
+</linearGradient>
+<path id="S1" fill="url(#c25a56d1-f00d-4e48-a393-04e51d452f5d_0)" fill-rule="evenodd" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 450.878 -32.243 C 450.921 -32.243 888.979 -33.593 889.023 -33.593 C 889.021 -33.477 873.960 1123.799 873.958 1123.915 C 873.916 1123.920 446.025 1177.583 445.982 1177.589 C 445.983 1177.468 450.877 -32.122 450.878 -32.243 Z"/>
+</g>
+</svg>

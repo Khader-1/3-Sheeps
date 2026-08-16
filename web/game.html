@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d2b12">
+<title>ألعاب الخراف الثلاثة والذئب الماكر</title>
+<link rel="stylesheet" href="../assets/fonts/embed.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: #1d2b12; overflow: hidden;
+    font-family: 'Poster Text', system-ui, sans-serif;
+    /* A kids' game gets poked at, hard. Stop text selection turning every
+       mis-tap into a highlighted blue smear. */
+    user-select: none; -webkit-user-select: none;
+    /* And stop iOS treating a fast double-tap on a button as zoom. */
+    touch-action: manipulation;
+  }
+  #host { position: fixed; inset: 0; display: grid; place-items: center; }
+  #host svg { width: 100%; height: 100%; display: block; }
+  .btn:active { opacity: .82; }
+  /* Keep the stage out from under notches and browser chrome. Safari's
+     bottom bar was covering the credit line, and no amount of in-SVG layout
+     can see that — it has to be handled in CSS. */
+  #host {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  #err {
+    position: fixed; inset: auto 12px 12px 12px; padding: 12px 16px;
+    background: #3b0d0d; color: #ffd7d7; border-radius: 10px;
+    font: 13px/1.5 ui-monospace, monospace; direction: ltr; display: none;
+    white-space: pre-wrap; max-height: 40vh; overflow: auto;
+  }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<pre id="err"></pre>
+<script type="module">
+  // Register the worker so the games install and run offline. It lives at the
+  // site root because its scope has to cover web/, src/ and assets/ — a worker
+  // under web/ could not cache the modules or the artwork. The path is
+  // relative so this works both at / and under a GitHub Pages project path.
+  // Registration is deliberately non-fatal: browsers refuse service workers
+  // outside a secure context, and over plain http on a LAN address that is
+  // every browser. The games must still run there.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('../sw.js').catch((e) => {
+      console.info('offline mode unavailable:', e.message);
+    });
+  }
+
+  try {
+    const { startMenu } = await import('../src/game/menu.js');
+    await startMenu(document.getElementById('host'));
+  } catch (e) {
+    const el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = (e && e.stack) || String(e);
+  }
+</script>
+</body>
+</html>

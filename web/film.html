@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>film</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; overflow:hidden; }
+  body.transparent { background:transparent; }
+  #stage { line-height:0; }
+  #stage svg { display:block; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script type="module">
+  // The renderer drives this page: it seeks to an exact time, screenshots,
+  // and repeats. Nothing animates on its own — no rAF, no CSS transitions —
+  // so output is deterministic and frame-exact.
+  const params = new URL(location.href).searchParams;
+  const target = params.get('target') || 'promo';
+
+  window.__ready = false;
+  window.__error = null;
+
+  try {
+    const mod = await import(`../src/targets/${target}.js`);
+    const film = await mod.default();
+
+    window.__film = {
+      duration: film.duration,
+      width: film.width,
+      height: film.height,
+      audio: film.audio || null,
+      seek: (t) => film.seek(t),
+      setTransparent: (on) => {
+        document.body.classList.toggle('transparent', !!on);
+        film.setTransparent?.(!!on);
+      },
+    };
+
+    film.seek(0);
+  } catch (e) {
+    window.__error = (e && e.stack) || String(e);
+  }
+  window.__ready = true;
+</script>
+</body>
+</html>

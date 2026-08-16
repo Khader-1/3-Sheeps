@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>build</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script type="module">
+  const target = new URL(location.href).searchParams.get('target') || 'poster';
+  window.__result = null;
+  window.__error = null;
+  try {
+    const mod = await import(`../src/targets/${target}.js`);
+    const out = await mod.default();
+    if (out instanceof SVGElement) document.getElementById('stage').appendChild(out);
+    window.__result = out instanceof SVGElement ? 'svg' : out;
+  } catch (e) {
+    window.__error = (e && e.stack) || String(e);
+  }
+  window.__done = true;
+</script>
+</body>
+</html>
