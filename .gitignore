@@ -15,3 +15,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Assembled by tools/site.mjs for deployment.
+dist/

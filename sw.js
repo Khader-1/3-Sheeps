@@ -8,7 +8,7 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmsw92b08';
+const CACHE = 'vmsw9u98q';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
  "web/game.html",
@@ -91,10 +91,26 @@ const ASSETS = [
 ].map(HERE);
 
 self.addEventListener('install', (e) => {
-  // addAll fails the whole install if any single file 404s, which is the
-  // behaviour we want: a half-cached game that breaks offline is worse than
-  // one that never claimed to be installed.
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // Fetched one at a time rather than with addAll, for one reason: a host may
+  // answer with a redirect. Cloudflare Pages rewrites /web/game.html to the
+  // extensionless /web/game, so the cached entry comes back flagged
+  // `redirected`, and Chrome refuses to satisfy a *navigation* from such a
+  // response — the menu loads once over the network and every load after it,
+  // with the worker in control, fails with ERR_FAILED. Rebuilding the response
+  // drops the flag.
+  //
+  // A single failure still rejects the whole install, which is the behaviour
+  // we want: a half-cached game that breaks offline is worse than one that
+  // never claimed to be installed.
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await Promise.all(ASSETS.map(async (u) => {
+      const res = await fetch(u, { cache: 'reload' });
+      if (!res.ok) throw new Error(`${res.status} caching ${u}`);
+      await cache.put(u, res.redirected ? new Response(res.body, res) : res);
+    }));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (e) => {
@@ -105,9 +121,21 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then((hit) => hit || fetch(e.request).catch(() =>
+  e.respondWith((async () => {
+    const hit = await caches.match(e.request);
+    if (hit) return hit;
+    try {
+      return await fetch(e.request);
+    } catch {
       // Offline and not cached: for a navigation, fall back to the menu.
-      e.request.mode === 'navigate' ? caches.match(HERE('web/game.html')) : Response.error()))
-  );
+      // respondWith() must be handed a Response — resolving it with the
+      // undefined of a cache miss fails the navigation outright, so the miss
+      // has to become an explicit error response.
+      if (e.request.mode === 'navigate') {
+        const menu = await caches.match(HERE('web/game.html'));
+        if (menu) return menu;
+      }
+      return Response.error();
+    }
+  })());
 });

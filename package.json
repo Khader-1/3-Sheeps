@@ -9,6 +9,7 @@
     "preview": "node tools/serve.mjs"
   },
   "devDependencies": {
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^23.11.1",
+    "wrangler": "^4.123.0"
   }
 }
