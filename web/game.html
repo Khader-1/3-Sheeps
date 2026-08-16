@@ -7,8 +7,15 @@
 <title>ألعاب الخراف الثلاثة والذئب الماكر</title>
 <link rel="stylesheet" href="../assets/fonts/embed.css">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<!-- iOS ignores the manifest's icons and its display mode. Add to Home Screen
+     reads apple-touch-icon for the tile and apple-mobile-web-app-capable to
+     drop Safari's chrome; without them the home screen gets a screenshot of
+     the page in a normal browser window. -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="الخراف الثلاثة">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>

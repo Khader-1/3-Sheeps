@@ -4,7 +4,7 @@
 //
 // Writes:
 //   web/manifest.webmanifest   name, icons, landscape, standalone
-//   web/icons/*.png            generated from the film's own artwork
+//   (icons come from tools/icons.mjs — run that first)
 //   sw.js                      service worker at the ROOT, so its scope covers
 //                              /web, /src and /assets — a worker under /web
 //                              could not cache the modules or the art
@@ -16,7 +16,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,35 +52,17 @@ const voices = fs.readFileSync(path.join(ROOT, 'src/game/voices.js'), 'utf8');
 for (const m of voices.matchAll(/file:\s*'([^']+)'/g)) urls.push(`${VOICE_DIR}/${m[1]}`);
 
 // ---- icons ----------------------------------------------------------------
+// Generated separately by tools/icons.mjs, which cuts them from the middle
+// brother's head. They are artwork, not packaging: regenerating them needs the
+// rigs and a browser, and they change far less often than the precache list.
 const ICON_DIR = path.join(ROOT, 'web/icons');
-fs.mkdirSync(ICON_DIR, { recursive: true });
-
-/** The app icon: the wolf's silhouette over the games' own green. */
-const iconSvg = (size, pad) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="${pad ? 0 : 18}" fill="#1d2b12"/>
-  <circle cx="50" cy="50" r="${pad ? 30 : 34}" fill="#3f7f2e"/>
-  <g transform="translate(50 ${pad ? 52 : 53}) scale(${pad ? 0.5 : 0.58})">
-    <path d="M-30-18 L-22-40 L-8-26 L8-26 L22-40 L30-18 C34 6 20 30 0 30 C-20 30 -34 6 -30-18 Z"
-          fill="#6f6f76" stroke="#15151a" stroke-width="4" stroke-linejoin="round"/>
-    <ellipse cx="-13" cy="-6" rx="6.5" ry="8" fill="#fff" stroke="#15151a" stroke-width="3"/>
-    <ellipse cx="13" cy="-6" rx="6.5" ry="8" fill="#fff" stroke="#15151a" stroke-width="3"/>
-    <circle cx="-12" cy="-4" r="3.4" fill="#15151a"/>
-    <circle cx="14" cy="-4" r="3.4" fill="#15151a"/>
-    <path d="M-9 10 L9 10 L0 20 Z" fill="#15151a"/>
-    <path d="M-16 22 L-10 14 L-4 22 L2 14 L8 22 L14 14 L18 22" fill="none"
-          stroke="#fffdf5" stroke-width="4" stroke-linejoin="round"/>
-  </g>
-</svg>`;
-
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-for (const [name, size, pad] of [['icon-192', 192, false], ['icon-512', 512, false], ['maskable-512', 512, true]]) {
-  const svgFile = path.join(ICON_DIR, `${name}.svg`);
-  fs.writeFileSync(svgFile, iconSvg(size, pad));
-  const r = spawnSync(CHROME, ['--headless', '--disable-gpu', `--screenshot=${path.join(ICON_DIR, name + '.png')}`,
-    `--window-size=${size},${size}`, '--default-background-color=00000000', 'file://' + svgFile], { stdio: 'ignore' });
-  if (r.status !== 0) console.warn(`  icon ${name}: render failed`);
+const ICONS = ['icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png', 'icon.svg'];
+const missingIcons = ICONS.filter((n) => !fs.existsSync(path.join(ICON_DIR, n)));
+if (missingIcons.length) {
+  console.error(`missing icons: ${missingIcons.join(', ')}\n  run: node tools/icons.mjs`);
+  process.exit(1);
 }
-for (const n of ['icon-192', 'icon-512', 'maskable-512']) urls.push(`web/icons/${n}.png`);
+for (const n of ICONS) urls.push(`web/icons/${n}`);
 
 // ---- manifest --------------------------------------------------------------
 fs.writeFileSync(path.join(ROOT, 'web/manifest.webmanifest'), JSON.stringify({
@@ -96,7 +77,9 @@ fs.writeFileSync(path.join(ROOT, 'web/manifest.webmanifest'), JSON.stringify({
   start_url: 'game.html',
   scope: '../',
   display: 'standalone',
-  orientation: 'landscape',
+  // Not locked to landscape: the games and menus were reworked to lay out for
+  // portrait too, and pinning the installed app would undo that on a phone.
+  orientation: 'any',
   background_color: '#1d2b12',
   theme_color: '#1d2b12',
   icons: [
@@ -186,4 +169,4 @@ self.addEventListener('fetch', (e) => {
 console.log(`pwa   ${urls.length} files precached, ${(bytes / 1048576).toFixed(1)} MB`);
 console.log(`      manifest  web/manifest.webmanifest`);
 console.log(`      worker    sw.js  (${version})`);
-console.log(`      icons     web/icons/{icon-192,icon-512,maskable-512}.png`);
+console.log(`      icons     ${ICONS.length} from tools/icons.mjs`);

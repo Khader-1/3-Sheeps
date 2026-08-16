@@ -180,6 +180,18 @@ export class Rig {
    *                                    [0.5,1] = bottom-centre (a foot).
    */
   pose(path, t = {}) {
+    // A fractional pivot is resolved through getBBox(), and getBBox() returns
+    // zeros for a node that is not in the document. Posing a detached rig
+    // therefore rotates every part about the rig's origin instead of its own
+    // centre — brows land on top of the head, mouths fly off the face — and it
+    // does so silently, which is what makes it expensive to find. Defer
+    // instead, and let ready()/place() replay the pose once there is geometry
+    // to measure.
+    //
+    // Only when the rig has never gone live: after ready() the flag is set, so
+    // a pose replayed from the queue runs for real rather than re-queueing.
+    if (!this._live && !this.node.isConnected) return this.whenLive(() => this.pose(path, t));
+
     const el = this.part(path);
     const {
       rotate = 0, x = 0, y = 0,

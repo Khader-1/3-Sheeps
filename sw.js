@@ -8,7 +8,7 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmsw9u98q';
+const CACHE = 'vmswafqea';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
  "web/game.html",
@@ -87,7 +87,9 @@ const ASSETS = [
  "assets/audio/%D8%B5%D9%88%D8%AA%D9%8A%D8%A7%D8%AA/%D8%A7%D9%84%D8%AB%D8%A7%D9%85%D9%86%20%D8%B9%D8%B4%D8%B1/%D8%A7%D9%84%D8%AE%D8%B1%D9%88%D9%81%20%D8%A7%D9%84%D8%A7%D9%83%D8%A8%D8%B1.mp3",
  "web/icons/icon-192.png",
  "web/icons/icon-512.png",
- "web/icons/maskable-512.png"
+ "web/icons/maskable-512.png",
+ "web/icons/apple-touch-icon.png",
+ "web/icons/icon.svg"
 ].map(HERE);
 
 self.addEventListener('install', (e) => {

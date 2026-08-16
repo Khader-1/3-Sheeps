@@ -7,7 +7,7 @@
   "start_url": "game.html",
   "scope": "../",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#1d2b12",
   "theme_color": "#1d2b12",
   "icons": [

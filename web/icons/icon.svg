@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 100 100">
-  <rect width="100" height="100" fill="#1d2b12"/>
-  <g transform="translate(-81.040 18.381) scale(0.15744)"><g xmlns="http://www.w3.org/2000/svg" data-part="الراس_تجميع" id="mid-1-g-الراس_تجميع"><g id="mid-1-27" data-part="الاذن">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 100 100">
+  
+  <g transform="translate(-155.295 0.464) scale(0.24665)"><g xmlns="http://www.w3.org/2000/svg" data-part="الراس_تجميع" id="mid-1-g-الراس_تجميع"><g id="mid-1-27" data-part="الاذن">
 <g id="mid-1-28" data-part="الاذن_خ">
 <path id="mid-1-29" fill="#a56047" fill-rule="evenodd" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 951.221 183.168 C 951.223 183.168 965.780 177.888 978.803 181.908 C 987.118 184.475 996.179 183.081 1004.411 195.532 C 1012.113 207.184 1022.884 215.271 1022.886 215.273 C 1022.883 215.272 1008.052 214.078 992.565 200.121 C 988.832 196.757 982.659 192.979 977.659 192.481 C 962.439 190.964 951.460 191.628 951.458 191.628 C 951.458 191.627 951.221 183.169 951.221 183.168 Z" data-part="S1"/>
 </g>
