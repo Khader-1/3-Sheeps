@@ -37,8 +37,11 @@ const walk = (dir, out = []) => {
 };
 
 const urls = [
+  'index.html',
+  'manifest.webmanifest',
+  // The old address, kept as a redirect stub for shortcuts made before the
+  // games moved to the root.
   'web/game.html',
-  'web/manifest.webmanifest',
   ...walk('src').filter((f) => f.endsWith('.js')),
   ...walk('assets/fonts'),
   ...walk('assets/audio/sfx').filter((f) => f.endsWith('.wav')),
@@ -65,7 +68,7 @@ if (missingIcons.length) {
 for (const n of ICONS) urls.push(`web/icons/${n}`);
 
 // ---- manifest --------------------------------------------------------------
-fs.writeFileSync(path.join(ROOT, 'web/manifest.webmanifest'), JSON.stringify({
+fs.writeFileSync(path.join(ROOT, 'manifest.webmanifest'), JSON.stringify({
   name: 'ألعاب الخراف الثلاثة والذئب الماكر',
   short_name: 'الخراف الثلاثة',
   description: 'سبع ألعاب قصيرة من فيلم الخراف الثلاثة والذئب الماكر',
@@ -74,18 +77,19 @@ fs.writeFileSync(path.join(ROOT, 'web/manifest.webmanifest'), JSON.stringify({
   // Relative, and resolved by the browser against the manifest's own URL, so
   // the app installs correctly whether the site is served at / (local, LAN)
   // or under /<repo>/ (GitHub Pages project site).
-  start_url: 'game.html',
-  scope: '../',
+  start_url: './',
+  scope: './',
   display: 'standalone',
-  // Not locked to landscape: the games and menus were reworked to lay out for
-  // portrait too, and pinning the installed app would undo that on a phone.
-  orientation: 'any',
+  // The installed app is locked to landscape. The games do lay out correctly
+  // in portrait — that work stands, and the browser tab still uses it — but
+  // these are wide scenes and they are meant to be played turned sideways.
+  orientation: 'landscape',
   background_color: '#1d2b12',
   theme_color: '#1d2b12',
   icons: [
-    { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-    { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-    { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: 'web/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: 'web/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    { src: 'web/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
 }, null, 2));
 
@@ -157,7 +161,7 @@ self.addEventListener('fetch', (e) => {
       // undefined of a cache miss fails the navigation outright, so the miss
       // has to become an explicit error response.
       if (e.request.mode === 'navigate') {
-        const menu = await caches.match(HERE('web/game.html'));
+        const menu = await caches.match(HERE('index.html'));
         if (menu) return menu;
       }
       return Response.error();
@@ -167,6 +171,6 @@ self.addEventListener('fetch', (e) => {
 `);
 
 console.log(`pwa   ${urls.length} files precached, ${(bytes / 1048576).toFixed(1)} MB`);
-console.log(`      manifest  web/manifest.webmanifest`);
+console.log(`      manifest  manifest.webmanifest`);
 console.log(`      worker    sw.js  (${version})`);
 console.log(`      icons     ${ICONS.length} from tools/icons.mjs`);

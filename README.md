@@ -38,14 +38,15 @@ src/targets/         poster, teaser, book, inspection renders
 tools/               renderers, audio mixing, TTS, music, PWA packaging
 assets/incoming/     the Moho projects and their SVG exports (source art)
 assets/audio/        recorded voices, generated sound effects
-web/                 the served pages
+index.html           the games — the site entry point
+web/                 secondary pages and the app icons
 ```
 
 ## Running it
 
 ```sh
 npm install            # puppeteer-core, for the renderers only
-node tools/serve.mjs   # http://127.0.0.1:8787/web/game.html
+node tools/serve.mjs   # http://127.0.0.1:8787/
 ```
 
 The games need nothing but a static server. The render pipeline drives headless
@@ -55,7 +56,9 @@ Chrome:
 node tools/build.mjs poster     # out/poster.{svg,png}
 node tools/book.mjs             # out/book.html
 node tools/render.mjs promo     # out/promo.mp4
-node tools/pwa.mjs              # manifest, icons, service worker
+node tools/icons.mjs            # app icons, cut from the artwork
+node tools/pwa.mjs              # manifest and service worker
+node tools/site.mjs             # assemble dist/ for deployment
 ```
 
 `out/` is not tracked — every file in it is regenerated from what is.

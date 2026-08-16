@@ -8,11 +8,12 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmswafqea';
+const CACHE = 'vmswanykg';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
+ "index.html",
+ "manifest.webmanifest",
  "web/game.html",
- "web/manifest.webmanifest",
  "src/anim/gait.js",
  "src/anim/idle.js",
  "src/anim/lipsync.js",
@@ -134,7 +135,7 @@ self.addEventListener('fetch', (e) => {
       // undefined of a cache miss fails the navigation outright, so the miss
       // has to become an explicit error response.
       if (e.request.mode === 'navigate') {
-        const menu = await caches.match(HERE('web/game.html'));
+        const menu = await caches.match(HERE('index.html'));
         if (menu) return menu;
       }
       return Response.error();

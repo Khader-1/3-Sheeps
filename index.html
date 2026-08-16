@@ -2,23 +2,83 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>الخراف الثلاثة والذئب الماكر</title>
-<!-- GitHub Pages serves the repository root, so something has to live here.
-     The games are the published part of the project; everything else in the
-     repo is source or tooling. -->
-<meta http-equiv="refresh" content="0; url=web/game.html">
-<link rel="canonical" href="web/game.html">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d2b12">
+<title>ألعاب الخراف الثلاثة والذئب الماكر</title>
+<!-- The games live at the site root, not behind a redirect.
+     iOS reads the install metadata off whatever page you are standing on when
+     you tap Add to Home Screen — it does not follow a redirect first. A stub
+     at the root with a meta-refresh therefore produced a plain Safari
+     bookmark with a screenshot for an icon, however complete the tags on the
+     page it forwarded to. Everything an install needs has to be here. -->
+<link rel="stylesheet" href="assets/fonts/embed.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="web/icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="web/icons/icon-192.png" sizes="192x192">
+<!-- iOS ignores the manifest's icons and its display mode: Add to Home Screen
+     reads apple-touch-icon for the tile and apple-mobile-web-app-capable to
+     drop Safari's chrome. Without them the home screen gets a screenshot of
+     the page, opening in an ordinary browser window. -->
+<link rel="apple-touch-icon" href="web/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="الخراف الثلاثة">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
-  body {
-    margin: 0; min-height: 100vh; display: grid; place-items: center;
-    background: #1d2b12; color: #f4ead6; text-align: center;
-    font-family: system-ui, sans-serif;
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: #1d2b12; overflow: hidden;
+    font-family: 'Poster Text', system-ui, sans-serif;
+    /* A kids' game gets poked at, hard. Stop text selection turning every
+       mis-tap into a highlighted blue smear. */
+    user-select: none; -webkit-user-select: none;
+    /* And stop iOS treating a fast double-tap on a button as zoom. */
+    touch-action: manipulation;
   }
-  a { color: #ffd23f; }
+  #host { position: fixed; inset: 0; display: grid; place-items: center; }
+  #host svg { width: 100%; height: 100%; display: block; }
+  .btn:active { opacity: .82; }
+  /* Keep the stage out from under notches and browser chrome. Safari's
+     bottom bar was covering the credit line, and no amount of in-SVG layout
+     can see that — it has to be handled in CSS. */
+  #host {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  #err {
+    position: fixed; inset: auto 12px 12px 12px; padding: 12px 16px;
+    background: #3b0d0d; color: #ffd7d7; border-radius: 10px;
+    font: 13px/1.5 ui-monospace, monospace; direction: ltr; display: none;
+    white-space: pre-wrap; max-height: 40vh; overflow: auto;
+  }
 </style>
 </head>
 <body>
-  <p>جارٍ فتح الألعاب… <a href="web/game.html">اضغط هنا إن لم تُفتح تلقائياً</a></p>
+<div id="host"></div>
+<pre id="err"></pre>
+<script type="module">
+  // Register the worker so the games install and run offline. It sits beside
+  // this page at the site root because its scope has to cover web/, src/ and
+  // assets/. The path is relative so this works both at / and under a GitHub
+  // Pages project path.
+  // Registration is deliberately non-fatal: browsers refuse service workers
+  // outside a secure context, and over plain http on a LAN address that is
+  // every browser. The games must still run there.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch((e) => {
+      console.info('offline mode unavailable:', e.message);
+    });
+  }
+
+  try {
+    const { startMenu } = await import('./src/game/menu.js');
+    await startMenu(document.getElementById('host'));
+  } catch (e) {
+    const el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = (e && e.stack) || String(e);
+  }
+</script>
 </body>
 </html>

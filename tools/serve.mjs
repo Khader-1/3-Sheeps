@@ -32,7 +32,7 @@ export function serve(port = 0) {
       res.writeHead(400).end('bad url');
       return;
     }
-    if (rel === '/') rel = '/web/build.html';
+    if (rel === '/') rel = '/index.html';
 
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT)) {

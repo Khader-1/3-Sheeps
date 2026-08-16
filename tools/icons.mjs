@@ -13,12 +13,11 @@
 // artwork, and only the eldest has horns, which crowd the frame at icon size.
 //
 // Backgrounds are per-platform, not a style choice:
-//   transparent   tab favicon, iOS home screen, and the manifest's "any"
-//                 icons — the head reads against light or dark chrome without
-//                 a slab behind it
-//   opaque green  the maskable icon only. Android crops it to a circle and
-//                 composites it against nothing, so a transparent maskable
-//                 shows as a head floating in a grey system square.
+//   transparent   tab favicon and the manifest's "any" icons — the head reads
+//                 against light or dark chrome without a slab behind it
+//   opaque green  the maskable icon, which Android crops to a circle and
+//                 composites against nothing, and the iOS home-screen tile,
+//                 which iOS composites onto black.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -119,7 +118,10 @@ try {
     ['icon-192', 192, 0.94, null],
     ['icon-512', 512, 0.94, null],
     // iOS uses this one for the home screen and ignores the manifest icons.
-    ['apple-touch-icon', 180, 0.94, null],
+    // Opaque, unlike the others: iOS composites a transparent apple-touch-icon
+    // onto black, so "no background" there means a black tile rather than the
+    // clean cut-out it gives a browser tab.
+    ['apple-touch-icon', 180, 0.80, GREEN],
     // Android masks to a circle and can crop up to 20% off each edge, so the
     // head has to stay well inside the tile — hence the tighter fill.
     ['maskable-512', 512, 0.60, GREEN],
