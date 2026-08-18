@@ -773,18 +773,27 @@
   }
 
   // ---- «لعبة صغيرة» ----------------------------------------------------
-  // The count is struck out and corrected twice before the games appear: one,
-  // then up to three, then the seven there actually are. Only the number is
-  // struck, because only the number is wrong — «صغيرة» is right for all three,
-  // Arabic taking a feminine singular adjective for a non-human plural.
+  // The count is struck out and corrected three times before the games
+  // appear: one, two, up to three, and then the seven there actually are.
+  //
+  // Only the number is struck, because only the number is being corrected —
+  // but the adjective has to follow it, so it changes at the same moment
+  // without a rule through it. Two are صغيرتان; three and seven are صغيرة
+  // again, Arabic taking a feminine singular adjective for a non-human plural.
   //
   // Each reading holds long enough to be talked over. Any key skips the whole
   // thing, so it is a flourish and never a wait.
-  const TALLY_HOLD = 2400;   // how long each wrong count stays up
-  const TALLY_LAST = 2600;   // and the true one, before it lifts
+  const TALLY_HOLD = 2000;   // how long each wrong count stays up
+  const TALLY_LAST = 2400;   // and the true one, before it lifts
   const tally = document.getElementById('tally');
   const tallyN = document.getElementById('tally-n');
-  const TALLY = ['لعبة', 'حتى ثلاث ألعاب', 'سبع ألعاب'];
+  const tallyA = document.getElementById('tally-a');
+  const TALLY = [
+    ['لعبة', 'صغيرة'],
+    ['لعبتان', 'صغيرتان'],
+    ['حتى ثلاث ألعاب', 'صغيرة'],
+    ['سبع ألعاب', 'صغيرة'],
+  ];
   let tallyRun = [];
 
   function countDone() {
@@ -797,19 +806,23 @@
 
   function countUp() {
     countDone();
-    tallyN.textContent = TALLY[0];
+    [tallyN.textContent, tallyA.textContent] = TALLY[0];
     tallyN.classList.remove('cut');
     tally.classList.add('on');
     const at = (ms, fn) => tallyRun.push(setTimeout(fn, ms));
-    TALLY.slice(1).forEach((word, i) => {
+    TALLY.slice(1).forEach(([n, adj], i) => {
       const t = TALLY_HOLD * (i + 1);
       at(t, () => tallyN.classList.add('cut'));
       at(t + 300, () => {
         tallyN.classList.remove('cut');
-        tallyN.textContent = word;
-        tallyN.classList.remove('swap');
-        void tallyN.offsetWidth;   // restart the animation
-        tallyN.classList.add('swap');
+        tallyN.textContent = n;
+        const changed = tallyA.textContent !== adj ? [tallyN, tallyA] : [tallyN];
+        tallyA.textContent = adj;
+        for (const el of changed) {
+          el.classList.remove('swap');
+          void el.offsetWidth;   // restart the animation
+          el.classList.add('swap');
+        }
       });
     });
     at(TALLY_HOLD * (TALLY.length - 1) + TALLY_LAST, countDone);
