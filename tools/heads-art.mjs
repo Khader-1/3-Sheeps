@@ -61,13 +61,18 @@ try {
     // Front and side for everyone. The side views are whole different drawings
     // — a profile, not a rotated face — so they compose differently: two
     // profiles can look at each other, which is the entire story in one shape.
+    const { openJaw } = await import('/src/book/effects.js');
     const cast = [];
     for (const [key, mood] of [['big', 'happy'], ['mid', 'happy'],
                                ['small', 'happy'], ['wolf', 'menacing']]) {
-      cast.push([key, 'front', mood, key]);
-      cast.push([key, 'side', mood, key + 'Side']);
+      cast.push([key, 'front', mood, key, 0]);
+      cast.push([key, 'side', mood, key + 'Side', 0]);
     }
-    for (const [key, view, mood, name] of cast) {
+    // A second wolf with his jaws open. openJaw builds the maw, tongue and
+    // canines onto the rig, so the head has to be taken after it runs.
+    cast.push(['wolf', 'front', 'menacing', 'wolfOpen', 30]);
+    cast.push(['wolf', 'side', 'menacing', 'wolfSideOpen', 26]);
+    for (const [key, view, mood, name, jaw] of cast) {
       let rig;
       try { rig = await loadCharacter(key, view); } catch { continue; }
       const holder = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -76,6 +81,7 @@ try {
       rig.ready();                 // mount before posing, or pivots measure as zero
       // The side rigs carry a different face map; not every preset applies.
       try { applyExpression(rig, mood); } catch { /* leave it as drawn */ }
+      if (jaw) { try { openJaw(rig, { angle: jaw }); } catch { /* no mouth here */ } }
 
       const headPath = rig.face.head || 'الراس';
       if (!rig.has(headPath)) continue;
@@ -137,7 +143,21 @@ try {
 
   // No container: the cluster itself is the silhouette, so it drops onto any
   // background without bringing a disc with it.
+  //
+  // The wolf at the very top, showing his ears and eyes and nothing below
+  // them; the eldest at the bottom and in front, with his brothers tucked
+  // behind his shoulders. Order is deliberate — the wolf is drawn first so
+  // everyone covers him, and the eldest last so he covers everyone. The wolf
+  // sits high enough that his eyes clear the eldest's wool: any lower and he
+  // reads as a hat rather than a threat.
   marks.trio = { w: 512, h: 512, transparent: true, body: `
+    ${put('wolf', 256, 108, 212)}
+    ${put('mid', 150, 250, 200)}
+    ${put('small', 362, 250, 200)}
+    ${put('big', 256, 352, 284)}` };
+
+  // The brothers on their own, kept for anywhere the wolf would be too much.
+  marks.trioPlain = { w: 512, h: 512, transparent: true, body: `
     ${put('mid', 148, 332, 216)}
     ${put('small', 364, 332, 216)}
     ${put('big', 256, 194, 292)}` };
@@ -188,14 +208,18 @@ try {
     ${titled('الخراف الثلاثة', 500, 610, 108)}
     ${titled('والذئب الماكر', 500, 740, 108)}` };
 
-  // Same lockup with the wolf looming behind the brothers.
-  lockups.lockupWolf = { w: 1000, h: 900, transparent: true, body: `
-    ${put('wolf', 500, 178, 330, { opacity: 0.92 })}
-    ${put('mid', 300, 320, 226)}
-    ${put('small', 700, 320, 226)}
-    ${put('big', 500, 348, 258)}
+  // The wolf above the brothers rather than among them, at full strength — a
+  // half-transparent wolf read as a ghost instead of as the one in the title.
+  const wolfLockup = (wolfKey) => `
+    ${put(wolfKey, 500, 155, 292)}
+    ${put('mid', 300, 352, 228)}
+    ${put('small', 700, 352, 228)}
+    ${put('big', 500, 372, 262)}
     ${titled('الخراف الثلاثة', 500, 640, 104)}
-    ${titled('والذئب الماكر', 500, 764, 104)}` };
+    ${titled('والذئب الماكر', 500, 764, 104)}`;
+
+  lockups.lockupWolf = { w: 1000, h: 900, transparent: true, body: wolfLockup('wolf') };
+  lockups.lockupWolfOpen = { w: 1000, h: 900, transparent: true, body: wolfLockup('wolfOpen') };
 
   // The profile confrontation over the title.
   lockups.lockupProfile = { w: 1000, h: 900, transparent: true, body: `
