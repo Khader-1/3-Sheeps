@@ -102,9 +102,37 @@
   }
   .badge.wip { background: rgba(255,210,63,.14); border-color: rgba(255,210,63,.5); color: var(--gold); }
 
+  /* ---- a poster that fills the screen ---------------------------------
+     The poster is portrait and the screen is not, so showing it whole always
+     left it boxed in on a field of dark. Instead its own artwork is scaled to
+     cover the whole frame behind it and then faded out towards the edges, so
+     the picture runs to the corners and the poster proper reads as the sharp
+     middle of it rather than as a card on a background.
+     The SVG, not the PNG: it is magnified well past its pixel size out there,
+     and vectors do not care. */
+  .bleed {
+    position: absolute; inset: 0; z-index: 0;
+    background: center/cover no-repeat var(--shot);
+    /* Blurred and dimmed, like the landing slide. Sharp, the surround competes
+       with the poster it is supposed to frame — and the poster's own tagline,
+       magnified four times out there, reads as text on the wall rather than as
+       background. Blur dissolves it into colour and shape. */
+    filter: blur(17px) saturate(1.12) brightness(.46);
+    transform: scale(1.12);
+  }
+  .bleed-fade {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 46% 68% at 50% 52%, transparent 18%, rgba(11,18,7,.72) 60%, var(--ink) 95%),
+      linear-gradient(to bottom, var(--ink) 0%, transparent 18%, transparent 82%, var(--ink) 100%),
+      linear-gradient(to right, var(--ink) 0%, transparent 15%, transparent 85%, var(--ink) 100%);
+  }
+  /* The slide's own rows have to sit above both layers. */
+  #s-poster > *:not(.bleed):not(.bleed-fade) { position: relative; z-index: 1; }
+
   /* ---- media --------------------------------------------------------- */
-  .stage img.poster { max-width: 100%; max-height: 100%; border-radius: 10px;
-    box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+  .stage img.poster { max-width: 100%; max-height: 100%; border-radius: 8px;
+    box-shadow: 0 24px 90px rgba(0,0,0,.85), 0 0 0 1px rgba(255,246,220,.08); }
   .stage video { max-width: 100%; max-height: 100%; border-radius: 10px;
     background: #000; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
   .frame {
@@ -200,8 +228,10 @@
 
   <!-- 2 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
+    <div class="bleed" style="--shot:url('out/poster.svg')"></div>
+    <div class="bleed-fade"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
-    <div class="stage"><img class="poster" src="out/poster.png" alt="ملصق الفيلم" loading="lazy"></div>
+    <div class="stage"><img class="poster" src="out/poster.svg" alt="ملصق الفيلم" loading="lazy"></div>
     <div class="foot"><span>رُسم بالكامل من مشاهد الفيلم نفسها</span></div>
   </section>
 

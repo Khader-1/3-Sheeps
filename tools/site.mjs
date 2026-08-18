@@ -42,6 +42,9 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT })
 // every TTS take.
 const DELIVERABLES = [
   'out/poster.png',
+  // The deck shows the poster full-bleed behind itself, magnified well past
+  // the PNG's pixel size; only the vector survives that.
+  'out/poster.svg',
   'out/promo.mp4',
   'out/promo-narrated.mp4',
   'out/book.html',
