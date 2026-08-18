@@ -122,6 +122,7 @@
        .pano.scenery       the whole scenery
        .pano.cast          the cast, the type, the logos — fading out
        .haze               backdrop-filter over all of it, no mask
+       .glow               light spilling off the page onto the glass
        .pano.scenery.win   the scenery again, clipped to the page
        .pano.win           the cast again, clipped to the page
 
@@ -196,6 +197,29 @@
     background-position: var(--art-x, center) var(--art-y, 0), 0 0;
     background-repeat: repeat-x, no-repeat;
   }
+  /* Light spilling off the page onto the smoked glass. Its own element,
+     under both window copies and over the veil, because a box-shadow on the
+     window layers themselves would be clipped away with everything else
+     outside the clip-path. The box has no background, so only the outer
+     shadow paints: a tight bright ring and a wide faint one, in the deck's
+     paper rather than white, so it reads as the poster being lit rather than
+     as a border. It arrives after the veil has finished, not alongside it. */
+  .glow {
+    position: absolute; pointer-events: none; opacity: 0;
+    left: var(--wx0); top: var(--wy0);
+    width: calc(var(--wx1) - var(--wx0));
+    height: calc(var(--wy1) - var(--wy0));
+    border-radius: var(--radius);
+    box-shadow: 0 0 4vh 0.6vh rgba(255, 246, 220, .20),
+                0 0 14vh 3vh rgba(255, 232, 170, .12);
+    /* Reset only after the section has finished fading out. */
+    transition: opacity 0s linear .6s;
+  }
+  /* After the veil, not with it: the scenery is given its two seconds to go,
+     and only once it has settled does the page light up. Two events read as
+     two events; overlapped they read as one muddy one. */
+  #s-poster.on .glow { opacity: 1; transition: opacity 1.5s ease 3.5s; }
+
   /* The page, cut out of a full-screen layer rather than masked into one.
      A rounded rectangle is not something two linear gradients can describe,
      and clip-path states it in one line. */
@@ -335,6 +359,7 @@
     <div class="pano scenery" style="--art:url('out/poster-wide-bg.svg')"></div>
     <div class="pano cast" style="--art:url('out/poster-wide-fg.svg')"></div>
     <i class="haze"></i>
+    <i class="glow"></i>
     <div class="pano scenery win" style="--art:url('out/poster-wide-bg.svg')"></div>
     <div class="pano win" style="--art:url('out/poster-wide-fg.svg')"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
