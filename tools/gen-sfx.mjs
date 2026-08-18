@@ -23,7 +23,10 @@
 //   growl      low rumbling growl
 //   whoosh     a cut accent between the reveal fragments
 //   impact     the hit under the title flash
-//   page-turn  one page going over, for the deck's book
+//
+// The deck's page turn is not here: page-flip.mp3 is a real recording
+// (Freesound, community upload 91468), which beat anything ffmpeg's noise
+// sources could be talked into.
 
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -116,19 +119,6 @@ const SFX = {
     f: `[0:a]bandpass=f=1600:width_type=q:w=1.8,
         afade=t=in:st=0:d=0.1:curve=exp,afade=t=out:st=0.12:d=0.3,
         aecho=0.7:0.5:70:0.2,volume=1.5[out]`,
-  },
-
-  // One page going over: a brush of high noise with a crackle on the front.
-  // Used by the deck, not the film — the book's pages turn to it.
-  'page-turn.wav': {
-    src: [noise('white', 0.5, 0.7), noise('white', 0.5, 0.5)],
-    f: `[0:a]highpass=f=1500,lowpass=f=7000,
-        afade=t=in:st=0:d=0.03:curve=exp,afade=t=out:st=0.07:d=0.34:curve=exp,
-        volume=1.7[brush];
-        [1:a]highpass=f=4200,tremolo=f=48:d=0.9,
-        afade=t=in:st=0:d=0.01,afade=t=out:st=0.02:d=0.16:curve=exp,
-        volume=0.8[crack];
-        [brush][crack]amix=inputs=2:normalize=0,alimiter=limit=0.9[out]`,
   },
 
   // The hit under the title flash: a noise crack over a long low decay.

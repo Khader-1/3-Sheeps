@@ -608,7 +608,9 @@
   // other. Picking from the overview skips it, since it is already open, and
   // so does a second keypress arriving mid-move: holding an arrow down should
   // page through the deck, not queue a stack of curtains.
-  const STEP_IN = 170, STEP_HOLD = 220;
+  // Long enough to be read, not so long that stepping through the deck feels
+  // like waiting. A keypress arriving during the hold cuts it short.
+  const STEP_IN = 220, STEP_HOLD = 1500;
   let moving = false, moveTimer = 0;
 
   function go(i, fromOverview = false) {
@@ -767,9 +769,19 @@
       // by its left edge and swings over to the right. backface-visibility
       // takes it out of sight as it passes edge-on, which is also the moment
       // the page beneath is fully uncovered.
+      //
+      // The perspective is deliberately long. Turning out means the free edge
+      // comes at the viewer, and a short perspective blows the page up past
+      // the top and bottom of the frame on the way.
+      //
+      // The sign matters and is not the obvious one. rotateY sends z' = −x·sinθ,
+      // and with the origin on the right edge every point of the page has a
+      // negative x, so a negative angle drives the free edge away from the
+      // viewer — the page sinks into the screen instead of lifting off the
+      // stack. Positive is what turns it out.
       css.textContent = `
         html,body{height:100%;overflow:hidden;margin:0!important;padding:0!important}
-        body{background:#0b1207; perspective:2200px}
+        body{background:#0b1207; perspective:3400px}
         body::-webkit-scrollbar{display:none}
         .sheet{
           position:absolute!important; inset:0; margin:0!important;
@@ -783,12 +795,12 @@
         .sheet.cur,.sheet.under{visibility:visible; z-index:1}
         .sheet.turning{visibility:visible; z-index:3}
         @keyframes turnFwd{
-          from{transform:rotateY(0deg);    filter:brightness(1)}
-          to  {transform:rotateY(-180deg); filter:brightness(.5)}
+          from{transform:rotateY(0deg);   filter:brightness(1)}
+          to  {transform:rotateY(180deg); filter:brightness(.5)}
         }
         @keyframes turnBack{
-          from{transform:rotateY(-180deg); filter:brightness(.5)}
-          to  {transform:rotateY(0deg);    filter:brightness(1)}
+          from{transform:rotateY(180deg); filter:brightness(.5)}
+          to  {transform:rotateY(0deg);   filter:brightness(1)}
         }`;
       doc.head.appendChild(css);
       bookPages = [...doc.querySelectorAll('.sheet')];
@@ -830,10 +842,11 @@
     bookTimer = setTimeout(bookSettle, BOOK_TURN + 40);
   }
 
-  // One page going over, synthesised in tools/gen-sfx.mjs alongside the film's
-  // other effects. Cloned per turn so a fast reader's pages overlap instead of
-  // cutting each other off.
-  const paperSrc = new Audio('assets/audio/sfx/page-turn.wav');
+  // One page going over — a real recording (Freesound, community upload
+  // 91468) rather than the synthesised effects the film uses; paper is one of
+  // the things ffmpeg's noise sources are bad at. Cloned per turn so a fast
+  // reader's pages overlap instead of cutting each other off.
+  const paperSrc = new Audio('assets/audio/sfx/page-flip.mp3');
   paperSrc.preload = 'auto';
   function paper() {
     const a = paperSrc.cloneNode();
