@@ -24,8 +24,10 @@ const CHAR_DIR = 'assets/incoming/خلفيات/شخصيات svg';
 const VOICE_DIR = 'assets/audio/صوتيات';
 
 /** Scenes the seven games and the menu open. */
-const SCENES = ['مشهد8', 'مشهد17و18', 'مشهد12', 'مشهد14', 'مشهد25جزء2', 'خلفيه 1'];
-const CHARS = ['ذيب', 'الخروف الاكبر', 'الخروف الاوسط', 'الخروف الاصغر'];
+const SCENES = ['مشهد8', 'مشهد17و18', 'طويله', 'مشهد14', 'مشهد25جزء2', 'خلفيه 1'];
+// طويله replaced مشهد12 behind the chase; the book still uses مشهد12, but the
+// book is not part of the installed app.
+const CHARS = ['ذيب', 'الخروف الاكبر', 'الخروف الاوسط', 'الخروف الاصغر', 'بيت-مجزأ'];
 
 const walk = (dir, out = []) => {
   for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {

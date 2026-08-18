@@ -39,6 +39,7 @@ try {
   const parts = await page.evaluate((ROOF_BOTTOM, DOOR) => {
     const svg = document.querySelector('svg');
     const out = { roof: [], walls: [], door: [] };
+    const boxes = {};
     for (const p of svg.querySelectorAll('path')) {
       const b = p.getBBox();
       const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
@@ -48,16 +49,32 @@ try {
         && b.x > DOOR.x0 - 30 && b.x + b.width < DOOR.x1 + 30;
       const key = inDoor ? 'door' : (cy < ROOF_BOTTOM ? 'roof' : 'walls');
       out[key].push(p.getAttribute('id'));
+      const acc = (boxes[key] ||= { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
+      acc.x0 = Math.min(acc.x0, b.x); acc.y0 = Math.min(acc.y0, b.y);
+      acc.x1 = Math.max(acc.x1, b.x + b.width); acc.y1 = Math.max(acc.y1, b.y + b.height);
     }
     const box = svg.getBBox();
-    return { out, box: { x: +box.x.toFixed(1), y: +box.y.toFixed(1),
-                         w: +box.width.toFixed(1), h: +box.height.toFixed(1) } };
+    // Each group's own box, measured here and written into the file. house.js
+    // needs it to place the parts, and getBBox() only works on a node that is
+    // in the document — measuring at build time saves every consumer from
+    // mounting the artwork just to find out how big a roof is.
+    const part = {};
+    for (const [k, a] of Object.entries(boxes)) {
+      part[k] = { x: +a.x0.toFixed(1), y: +a.y0.toFixed(1),
+                  w: +(a.x1 - a.x0).toFixed(1), h: +(a.y1 - a.y0).toFixed(1) };
+    }
+    return { out, part, box: { x: +box.x.toFixed(1), y: +box.y.toFixed(1),
+                               w: +box.width.toFixed(1), h: +box.height.toFixed(1) } };
   }, ROOF_BOTTOM, DOOR);
 
-  const { out, box } = parts;
+  const { out, part, box } = parts;
   console.log(`house  ${box.w.toFixed(0)} x ${box.h.toFixed(0)} at ${box.x},${box.y}`);
   console.log(`       roof ${out.roof.length}  walls ${out.walls.length}  door ${out.door.length}` +
               `  (total ${out.roof.length + out.walls.length + out.door.length})`);
+  for (const k of ['roof', 'walls', 'door']) {
+    const b = part[k];
+    console.log(`       ${k.padEnd(5)} box  x=${b.x} y=${b.y} w=${b.w} h=${b.h}`);
+  }
 
   // Rebuild the file with three groups, keeping every path's original order so
   // the overlaps still paint correctly.
@@ -78,7 +95,7 @@ try {
 <svg xmlns="http://www.w3.org/2000/svg" width="${box.w}" height="${box.h}"
      viewBox="${box.x} ${box.y} ${box.w} ${box.h}">
 ${['walls', 'roof', 'door'].map((k) =>
-  `<g id="${NAME[k]}">\n${bodies[k].join('\n')}\n</g>`).join('\n')}
+  `<g id="${NAME[k]}" data-part="${k}" data-box="${part[k].x} ${part[k].y} ${part[k].w} ${part[k].h}">\n${bodies[k].join('\n')}\n</g>`).join('\n')}
 </svg>
 `;
   fs.writeFileSync(OUT, doc);

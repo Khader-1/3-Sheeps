@@ -9,7 +9,7 @@ import { svgEl } from '../rig.js';
 import { loadCharacter, applyExpression, restArms } from '../expressions.js';
 import { buildLimbChains } from '../anim/gait.js';
 import { blow as blowEffect } from '../book/effects.js';
-import { MATERIALS, PARTS, GEO, buildPart, ghostPart } from './house.js';
+import { MATERIALS, PARTS, GEO, buildPart, ghostPart, loadHouse } from './house.js';
 import { W, H, INK, CREAM, GREEN, clamp01, rnd, panel, label, button, scrim, backChip, banner, view, coverView, onViewChange, fitGround, band } from './ui.js';
 
 const BLOW_FORCE = 2.6;
@@ -36,6 +36,9 @@ export const meta = {
 
 export async function start(ctx) {
   const { layers } = ctx;
+  // The house is real artwork now, and GEO is measured from it — nothing
+  // that touches a part may run before this resolves.
+  await loadHouse();
   await ctx.scene('مشهد8');
   fitGround(layers);
   onViewChange(() => fitGround(layers));

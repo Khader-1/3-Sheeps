@@ -8,7 +8,7 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmswb28tw';
+const CACHE = 'vmsykqozt';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
  "index.html",
@@ -67,7 +67,7 @@ const ASSETS = [
  "assets/audio/sfx/whoosh.wav",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF8.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF17%D9%8818.svg",
- "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF12.svg",
+ "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D8%B7%D9%88%D9%8A%D9%84%D9%87.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF14.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF25%D8%AC%D8%B2%D8%A12.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D8%AE%D9%84%D9%81%D9%8A%D9%87%201.svg",
@@ -75,6 +75,7 @@ const ASSETS = [
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%B4%D8%AE%D8%B5%D9%8A%D8%A7%D8%AA%20svg/%D8%A7%D9%84%D8%AE%D8%B1%D9%88%D9%81%20%D8%A7%D9%84%D8%A7%D9%83%D8%A8%D8%B1.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%B4%D8%AE%D8%B5%D9%8A%D8%A7%D8%AA%20svg/%D8%A7%D9%84%D8%AE%D8%B1%D9%88%D9%81%20%D8%A7%D9%84%D8%A7%D9%88%D8%B3%D8%B7.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%B4%D8%AE%D8%B5%D9%8A%D8%A7%D8%AA%20svg/%D8%A7%D9%84%D8%AE%D8%B1%D9%88%D9%81%20%D8%A7%D9%84%D8%A7%D8%B5%D8%BA%D8%B1.svg",
+ "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%B4%D8%AE%D8%B5%D9%8A%D8%A7%D8%AA%20svg/%D8%A8%D9%8A%D8%AA-%D9%85%D8%AC%D8%B2%D8%A3.svg",
  "assets/audio/%D8%B5%D9%88%D8%AA%D9%8A%D8%A7%D8%AA/%D8%A7%D9%84%D9%85%D8%B4%D9%87%D8%AF%20%D8%A7%D9%84%D8%B9%D8%A7%D8%B4%D8%B1/%D8%A7%D9%84%D8%B0%D8%A6%D8%A8.mp3",
  "assets/audio/%D8%B5%D9%88%D8%AA%D9%8A%D8%A7%D8%AA/%D8%A7%D9%84%D9%85%D8%B4%D9%87%D8%AF%20%D8%A7%D9%84%D8%B9%D8%A7%D8%B4%D8%B1/%D8%A7%D9%84%D8%B0%D8%A6%D8%A8%202.mp3",
  "assets/audio/%D8%B5%D9%88%D8%AA%D9%8A%D8%A7%D8%AA/%D8%A7%D9%84%D9%85%D8%B4%D9%87%D8%AF%20%D8%A7%D9%84%D8%AE%D8%A7%D9%85%D8%B3%20%D8%B9%D8%B4%D8%B1/%D8%A7%D9%84%D8%B0%D8%A6%D8%A8.mp3",

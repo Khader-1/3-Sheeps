@@ -5,7 +5,7 @@
 // parts from «ابنِ بيتك», which are already separate, snappable objects.
 
 import { svgEl } from '../rig.js';
-import { MATERIALS, PARTS, GEO, buildPart, ghostPart } from './house.js';
+import { MATERIALS, PARTS, GEO, buildPart, ghostPart, loadHouse } from './house.js';
 import { W, H, CREAM, clamp01, rnd, panel, label, button, scrim, backChip, banner, view, coverView, onViewChange, band, fitGround } from './ui.js';
 
 export const meta = {
@@ -30,6 +30,9 @@ const PART_LABEL = Object.fromEntries(PARTS.map((p) => [p.id, p.label]));
 
 export async function start(ctx) {
   const { layers, svg } = ctx;
+  // The house is real artwork now, and GEO is measured from it — nothing
+  // that touches a part may run before this resolves.
+  await loadHouse();
   await ctx.scene('مشهد8');
   fitGround(layers);
   onViewChange(() => fitGround(layers));
@@ -38,7 +41,24 @@ export async function start(ctx) {
   const pieces = [];
 
   // Where the scattered pieces start — deliberately nowhere near their slots.
-  const SCATTER = { walls: [210, 250], roof: [1030, 190], door: [980, 560] };
+  // Where each piece starts, as the centre it should sit at. The parts are
+  // real artwork now and much bigger than the blocks they replaced — walls are
+  // 591 wide against a 1280 stage — so a hand-picked point can easily hang a
+  // piece off the edge where it cannot be grabbed. Clamped to keep every piece
+  // wholly on stage whatever its size.
+  const MARGIN = 22;
+  const scatterAt = (id, cx, cy) => {
+    const b = GEO[id];
+    return [
+      Math.min(Math.max(cx, b.w / 2 + MARGIN), W - b.w / 2 - MARGIN),
+      Math.min(Math.max(cy, b.h / 2 + MARGIN), H - b.h / 2 - MARGIN),
+    ];
+  };
+  const SCATTER = {
+    walls: scatterAt('walls', 330, 205),
+    roof: scatterAt('roof', 940, 195),
+    door: scatterAt('door', 1060, 555),
+  };
 
   function build() {
     layers.world.replaceChildren();
@@ -49,7 +69,9 @@ export async function start(ctx) {
     for (const p of PARTS) layers.world.appendChild(ghostPart(p.id));
 
     for (const p of PARTS) {
-      const mat = MATERIALS.stone;
+      // Natural wood: the ghost behind is the house as painted, and a piece
+      // tinted for a material the player never chose only muddles the match.
+      const mat = MATERIALS.wood;
       const node = buildPart(p.id, mat);
       const home = GEO[p.id];
       const [sx, sy] = SCATTER[p.id];
