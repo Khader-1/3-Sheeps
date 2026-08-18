@@ -52,6 +52,21 @@
   }
   h1, h2 { font-family: 'Poster Display', sans-serif; font-weight: 800; margin: 0; line-height: 1.15; }
   h1 { font-size: clamp(38px, 8.4vmin, 132px); }
+  /* The poster sets this title as a cream fill inside a heavy dark outline. It
+     draws it as two copies — an outlined one behind a filled one — because
+     that is what SVG needs. In HTML it is one element: paint-order puts the
+     stroke behind the fill, so the letterforms keep their full weight instead
+     of a centred stroke eating into them from both sides.
+     Same ratio as the poster: 18px of stroke on a 104px title. */
+  .titled {
+    /* The outline adds ~13px to every edge, which closed the gap between the
+       two lines until they touched. Loosen the leading to pay for it. */
+    line-height: 1.34;
+    color: #FFF3C4;
+    -webkit-text-stroke: 0.17em #22160b;
+    paint-order: stroke fill;
+    text-shadow: 0 .05em .18em rgba(0, 0, 0, .55);
+  }
   h2 { font-size: clamp(26px, 5vmin, 68px); }
   .sub { font-size: clamp(15px, 2.1vmin, 30px); color: var(--muted); margin-top: .5em; font-weight: 600; }
   .stage { min-height: 0; display: grid; place-items: center; position: relative; }
@@ -170,7 +185,7 @@
     <div class="vignette"></div>
     <div class="wrap">
       <div class="kicker">مشروع تخرّج</div>
-      <h1>الخراف الثلاثة<br>والذئب الماكر</h1>
+      <h1 class="titled">الخراف الثلاثة<br>والذئب الماكر</h1>
       <div class="sub">فيلم رسوم متحركة · ملصق · إعلان · كتاب · سبع ألعاب</div>
       <div class="sub" style="margin-top:1.4em">كلية فلسطين التقنية — دير البلح<br>الوسائط المتعددة والرسوم المتحركة</div>
     </div>
@@ -245,7 +260,7 @@
     <div style="z-index:1"><div class="kicker">٠٦</div></div>
     <div class="stage" style="z-index:1">
       <div style="text-align:center">
-        <h1>شكراً لكم</h1>
+        <h1 class="titled">شكراً لكم</h1>
         <div class="sub" style="margin-top:1.2em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
       </div>
     </div>
