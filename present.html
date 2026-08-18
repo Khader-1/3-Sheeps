@@ -102,33 +102,44 @@
   }
   .badge.wip { background: rgba(255,210,63,.14); border-color: rgba(255,210,63,.5); color: var(--gold); }
 
-  /* ---- a poster that fills the screen ---------------------------------
-     The poster is portrait and the screen is not, so showing it whole always
-     left it boxed in on a field of dark. Instead its own artwork is scaled to
-     cover the whole frame behind it and then faded out towards the edges, so
-     the picture runs to the corners and the poster proper reads as the sharp
-     middle of it rather than as a card on a background.
-     The SVG, not the PNG: it is magnified well past its pixel size out there,
-     and vectors do not care. */
-  .bleed {
-    position: absolute; inset: 0; z-index: 0;
-    background: center/cover no-repeat var(--shot);
-    /* Blurred and dimmed, like the landing slide. Sharp, the surround competes
-       with the poster it is supposed to frame — and the poster's own tagline,
-       magnified four times out there, reads as text on the wall rather than as
-       background. Blur dissolves it into colour and shape. */
-    filter: blur(17px) saturate(1.12) brightness(.46);
-    transform: scale(1.12);
+  /* ---- the poster resolving out of its own scene ----------------------
+     The poster's background is one of the film's own scenes, and the A3 page
+     only ever showed the middle of it: out/poster.svg is viewBox 0 0 842 1191
+     with everything inside a group carrying clip-path="url(#page)", while the
+     artwork under that clip runs from x=-239 to x=1083.8. So 239 units of
+     scene are cut off the left and 242 off the right.
+
+     tools/poster-unclipped.mjs releases the clip and widens the frame. The
+     section opens on that whole scene and then lets the cropped wings fade
+     away, so the poster resolves out of the picture it was taken from instead
+     of simply appearing.
+
+     One image with two curtains, not two stacked images. Cross-fading a full
+     copy over a cropped copy would need them registered to the pixel; curtains
+     cannot drift, because the wings are fixed shares of the very image they
+     sit on — 18.068% and 18.278%, printed by the generator. */
+  .unclip {
+    position: relative; height: 100%; max-width: 100%;
+    aspect-ratio: 1322.78 / 1191;
   }
-  .bleed-fade {
-    position: absolute; inset: 0; z-index: 0;
-    background:
-      radial-gradient(ellipse 46% 68% at 50% 52%, transparent 18%, rgba(11,18,7,.72) 60%, var(--ink) 95%),
-      linear-gradient(to bottom, var(--ink) 0%, transparent 18%, transparent 82%, var(--ink) 100%),
-      linear-gradient(to right, var(--ink) 0%, transparent 15%, transparent 85%, var(--ink) 100%);
+  .unclip img { width: 100%; height: 100%; display: block; }
+  .wing {
+    position: absolute; top: 0; bottom: 0; background: var(--ink); opacity: 0;
+    /* Reset only after the section has finished fading out, so leaving
+       mid-reveal never flashes the wings back in on the way past. */
+    transition: opacity 0s linear .6s;
   }
-  /* The slide's own rows have to sit above both layers. */
-  #s-poster > *:not(.bleed):not(.bleed-fade) { position: relative; z-index: 1; }
+  .wing.l { left: 0; width: 18.068%; }
+  .wing.r { right: 0; width: 18.278%; }
+  /* Hold the whole scene for a beat, then take the wings. */
+  .slide.on .wing { opacity: 1; transition: opacity 1.6s ease 1.3s; }
+  /* The page gains its own edge once it is alone. */
+  .unclip .page-edge {
+    position: absolute; top: 0; bottom: 0; left: 18.068%; right: 18.278%;
+    box-shadow: 0 24px 90px rgba(0,0,0,.85); pointer-events: none;
+    opacity: 0; transition: opacity 0s linear .6s;
+  }
+  .slide.on .page-edge { opacity: 1; transition: opacity 1.6s ease 1.3s; }
 
   /* ---- media --------------------------------------------------------- */
   .stage img.poster { max-width: 100%; max-height: 100%; border-radius: 8px;
@@ -228,10 +239,14 @@
 
   <!-- 2 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
-    <div class="bleed" style="--shot:url('out/poster.svg')"></div>
-    <div class="bleed-fade"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
-    <div class="stage"><img class="poster" src="out/poster.svg" alt="ملصق الفيلم" loading="lazy"></div>
+    <div class="stage">
+      <div class="unclip">
+        <img src="out/poster-unclipped.svg" alt="ملصق الفيلم">
+        <i class="wing l"></i><i class="wing r"></i>
+        <i class="page-edge"></i>
+      </div>
+    </div>
     <div class="foot"><span>رُسم بالكامل من مشاهد الفيلم نفسها</span></div>
   </section>
 
