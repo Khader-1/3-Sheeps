@@ -113,6 +113,41 @@ export async function loadHouse() {
   return GEO;
 }
 
+/** The artwork's own box, and where the door sits along its front. */
+export const ART_BOX = { x: 280, y: 123.3, w: 720, h: 475.2 };
+export const DOOR_FRAC = (452 - ART_BOX.x) / ART_BOX.w;
+
+/**
+ * The whole house as a positioned group, for scenes that just want to stand it
+ * somewhere — the chase's finish line, the menu's set.
+ *
+ * `doorAt` aligns the DOOR to an x rather than the corner: a house is arrived
+ * at through its door, and lining up the bounding box instead leaves whoever
+ * is walking to it standing beside the wall.
+ *
+ * @param {object} o
+ * @param {number} o.height  in game units
+ * @param {number} o.bottom  y its base should sit on
+ * @param {number} [o.left]  x of its left edge
+ * @param {number} [o.doorAt] x the door should land on; overrides `left`
+ */
+export async function houseNode({ height, bottom, left = 0, doorAt = null }) {
+  const text = await fetchText(SRC);
+  const parsed = new DOMParser().parseFromString(text, 'image/svg+xml');
+  const scale = height / ART_BOX.h;
+  const x = doorAt === null ? left : doorAt - ART_BOX.w * scale * DOOR_FRAC;
+  const g = svgEl('g', {
+    transform: `translate(${round(x - ART_BOX.x * scale)} `
+      + `${round(bottom - (ART_BOX.y + ART_BOX.h) * scale)}) scale(${round(scale)})`,
+  });
+  // Its children, not the <svg> root: importing that would nest a viewport
+  // with its own width and clip the house to it.
+  for (const child of [...parsed.documentElement.children]) {
+    g.appendChild(document.importNode(child, true));
+  }
+  return g;
+}
+
 /** A part's artwork, transformed into game space. */
 function artFor(id) {
   if (!doc) throw new Error('loadHouse() must be awaited before buildPart()');

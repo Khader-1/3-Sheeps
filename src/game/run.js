@@ -7,8 +7,9 @@
 // the timeline: limbs are posed from a phase that advances with the ground, so
 // the legs stay in step with the speed instead of sliding.
 
-import { svgEl, fetchText } from '../rig.js';
+import { svgEl } from '../rig.js';
 import { loadScene } from '../anim/stage.js';
+import { houseNode } from './house-art.js';
 import { loadCharacter, applyExpression, restArms, REST_ARMS } from '../expressions.js';
 import { buildLimbChains, limbPivots } from '../anim/gait.js';
 import { W, H, CREAM, GREEN, RED, clamp01, rnd, panel, label, button, scrim, backChip, banner, view, coverView, onViewChange, band, fitGround } from './ui.js';
@@ -52,14 +53,7 @@ const HOUSE_X = Math.round((1214 - PANO.x) * PANO_SCALE);
 const GOAL = 3800;
 
 /** The brother's house at the finish — the artwork, at a size he could enter. */
-const HOUSE_SRC = '/assets/incoming/خلفيات/شخصيات svg/بيت-مجزأ.svg';
-const HOUSE_BOX = { x: 280, y: 123.3, w: 720, h: 475.2 };   // its own viewBox
 const HOUSE_H = 430;
-/**
- * The door sits 24% along the front, so aligning the door — not the corner —
- * with the runner's mark is what makes him finish AT it rather than beside it.
- */
-const HOUSE_DOOR_FRAC = (452 - HOUSE_BOX.x) / HOUSE_BOX.w;
 const GRAVITY = 2100;
 const JUMP_V = 780;
 const TAU = Math.PI * 2;
@@ -96,20 +90,11 @@ export async function start(ctx) {
   // The finish, standing on the same ground the runner does. It scrolls with
   // the strip rather than being slid in separately, so it behaves like part of
   // the world instead of a card that arrives.
-  {
-    const scale = HOUSE_H / HOUSE_BOX.h;
-    const doorX = HOUSE_BOX.w * scale * HOUSE_DOOR_FRAC;
-    const left = GOAL + RUNNER_X - doorX;
-    const g = svgEl('g', {
-      transform: `translate(${rnd(left - HOUSE_BOX.x * scale)} `
-        + `${rnd(GROUND + 10 - (HOUSE_BOX.y + HOUSE_BOX.h) * scale)}) scale(${rnd(scale)})`,
-    });
-    const doc = new DOMParser().parseFromString(await fetchText(HOUSE_SRC), 'image/svg+xml');
-    // Its children, not the <svg> itself: importing the root would nest a
-    // viewport with its own width and clip the house to it.
-    for (const child of [...doc.documentElement.children]) g.appendChild(document.importNode(child, true));
-    scroll.appendChild(g);
-  }
+  // Aligned by its door, so he finishes at the threshold rather than beside
+  // the wall.
+  scroll.appendChild(await houseNode({
+    height: HOUSE_H, bottom: GROUND + 10, doorAt: GOAL + RUNNER_X,
+  }));
 
   const runner = await loadCharacter('small', 'front');
   const runHolder = svgEl('g');

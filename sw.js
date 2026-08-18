@@ -8,7 +8,7 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmsym13sq';
+const CACHE = 'vmsymglb5';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
  "index.html",

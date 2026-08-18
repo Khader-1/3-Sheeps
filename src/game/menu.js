@@ -10,6 +10,7 @@
 
 import { svgEl } from '../rig.js';
 import { loadCharacter, applyExpression, restArms } from '../expressions.js';
+import { houseNode } from './house-art.js';
 import { makeStage, GameContext, W, H, CREAM, INK, panel, label, scrim, view, band, fitGround, groundTop, isTall, onViewChange } from './ui.js';
 
 import * as build from './build.js';
@@ -51,6 +52,27 @@ export async function startMenu(host) {
     const { layers } = ctx;
 
     await ctx.scene('خلفيه 1');
+
+    // The set has a house painted into it — 390 loose paths with no group of
+    // their own, sitting between the sky and the trees in draw order. Nothing
+    // names them, but they are one unbroken run, so the two groups either side
+    // bracket it exactly. Pull that run out and stand the real house where it
+    // was, with the palms still drawing in front of it.
+    {
+      const root = layers.bg.querySelector('[data-scene]')?.querySelector('g');
+      const kids = root ? [...root.children] : [];
+      const from = kids.findIndex((n) => n.getAttribute('id') === 'الغيم_والشمس');
+      const to = kids.findIndex((n) => n.getAttribute('id') === 'اشجار');
+      if (from >= 0 && to > from) {
+        for (let i = from + 1; i < to; i++) kids[i].remove();
+        // Matched to the one it replaces: 625 tall with its base on the path,
+        // running off the right edge. The height is the point — the tile grid
+        // covers everything below about y=170, so a shorter house would sit
+        // entirely behind the menu and never be seen.
+        const house = await houseNode({ height: 625, bottom: 652, left: 580 });
+        root.insertBefore(house, kids[to]);
+      }
+    }
     // One transform for the set AND the cast standing in it. Scaling only the
     // background left the characters at their original size against a resized
     // scene — the sheep grew and shrank relative to the house they stand
