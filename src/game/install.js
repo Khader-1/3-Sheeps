@@ -106,6 +106,9 @@ const PLUS_ICON = `<svg class="ins-gl" viewBox="0 0 24 24" fill="none" stroke="#
  * @param {number} [o.delay] ms to wait before asking
  */
 export function initInstallPrompt({ delay = 2500 } = {}) {
+  // Inside the project deck the games run in an iframe; an install card there
+  // is offering to install a page the viewer is not really on.
+  if (new URLSearchParams(location.search).has('embed')) return;
   if (installed() || snoozed()) return;
 
   let deferred = null;

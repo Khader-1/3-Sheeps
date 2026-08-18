@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1207">
+<title>الخراف الثلاثة والذئب الماكر — عرض المشروع</title>
+<link rel="stylesheet" href="assets/fonts/embed.css">
+<link rel="icon" href="web/icons/icon.svg" type="image/svg+xml">
+<style>
+  /* A deck for defending the project in a room, on a projector, with someone
+     talking over it. Everything follows from that:
+       - nothing scrolls, ever; each section is exactly one screen
+       - one idea per screen, set large enough to read from the back
+       - the presenter drives with the keyboard and never hunts for a control
+       - nothing plays or moves until asked
+     Sections cross-fade rather than slide sideways. In an RTL deck a
+     horizontal move is ambiguous — "forward" and "right" disagree — and a fade
+     with a breath of scale reads as deliberate at any aspect ratio. */
+  :root {
+    --ink: #0b1207;
+    --paper: #FFF6DC;
+    --gold: #ffd23f;
+    --green: #7ac043;
+    --muted: rgba(255, 246, 220, .62);
+    --pad: clamp(24px, 4vmin, 64px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--ink); color: var(--paper);
+    font-family: 'Poster Text', system-ui, sans-serif;
+    user-select: none; -webkit-user-select: none;
+  }
+  body { display: grid; }
+
+  /* ---- sections ---------------------------------------------------- */
+  .deck { position: fixed; inset: 0; }
+  .slide {
+    position: absolute; inset: 0;
+    display: grid; grid-template-rows: auto 1fr auto;
+    padding: var(--pad);
+    opacity: 0; transform: scale(1.03);
+    transition: opacity .5s ease, transform .6s cubic-bezier(.2,.8,.25,1);
+    pointer-events: none; visibility: hidden;
+  }
+  .slide.on { opacity: 1; transform: none; pointer-events: auto; visibility: visible; }
+
+  .kicker {
+    font-size: clamp(13px, 1.5vmin, 19px); letter-spacing: .22em;
+    color: var(--muted); font-weight: 600;
+  }
+  h1, h2 { font-family: 'Poster Display', sans-serif; font-weight: 800; margin: 0; line-height: 1.15; }
+  h1 { font-size: clamp(38px, 8.4vmin, 132px); }
+  h2 { font-size: clamp(26px, 5vmin, 68px); }
+  .sub { font-size: clamp(15px, 2.1vmin, 30px); color: var(--muted); margin-top: .5em; font-weight: 600; }
+  .stage { min-height: 0; display: grid; place-items: center; position: relative; }
+  /* A grid item's default min-height is `auto`, which for an image or a video
+     means its intrinsic size — and an intrinsic minimum beats max-height:100%.
+     The poster is 1588px tall, so without this it simply hangs off the bottom
+     of the screen at full size. */
+  .stage > * { min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; }
+  .foot { font-size: clamp(12px, 1.5vmin, 18px); color: var(--muted); display: flex; gap: 1.4em; align-items: center; }
+
+  /* ---- 1. title ------------------------------------------------------ */
+  #s-title { grid-template-rows: 1fr; place-items: center; text-align: center; }
+  #s-title .wrap { display: grid; gap: .35em; justify-items: center; z-index: 1; }
+  .bg-poster {
+    position: absolute; inset: -8%; z-index: 0;
+    background: center/cover no-repeat var(--shot);
+    filter: blur(26px) saturate(1.15) brightness(.42); transform: scale(1.1);
+  }
+  .vignette { position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse at center, transparent 25%, rgba(4,8,3,.86) 78%); }
+  .badge {
+    display: inline-block; padding: .42em 1.1em; border-radius: 999px;
+    background: rgba(255,246,220,.1); border: 2px solid rgba(255,246,220,.28);
+    font-size: clamp(12px, 1.7vmin, 21px); font-weight: 700; letter-spacing: .04em;
+  }
+  .badge.wip { background: rgba(255,210,63,.14); border-color: rgba(255,210,63,.5); color: var(--gold); }
+
+  /* ---- media --------------------------------------------------------- */
+  .stage img.poster { max-width: 100%; max-height: 100%; border-radius: 10px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+  .stage video { max-width: 100%; max-height: 100%; border-radius: 10px;
+    background: #000; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+  .frame {
+    width: 100%; height: 100%; border: 0; border-radius: 12px; background: #16220f;
+    box-shadow: 0 26px 70px rgba(0,0,0,.6);
+  }
+  .holder { width: 100%; height: 100%; display: grid; place-items: center; }
+  /* A play affordance the presenter can hit without aiming. */
+  .tap {
+    position: absolute; inset: 0; display: grid; place-items: center; cursor: pointer;
+    background: rgba(6,10,4,.42); border-radius: 10px; transition: opacity .25s;
+  }
+  .tap span {
+    width: clamp(64px, 11vmin, 132px); aspect-ratio: 1; border-radius: 50%;
+    background: rgba(255,246,220,.94); color: var(--ink);
+    display: grid; place-items: center; font-size: clamp(26px, 5vmin, 58px);
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .tap.gone { opacity: 0; pointer-events: none; }
+
+  /* ---- chrome -------------------------------------------------------- */
+  .rail {
+    position: fixed; inset: auto 0 clamp(10px, 1.6vmin, 22px) 0; z-index: 30;
+    display: flex; justify-content: center; gap: clamp(7px, 1vmin, 13px);
+    pointer-events: none;
+  }
+  .rail b {
+    width: clamp(7px, .9vmin, 12px); aspect-ratio: 1; border-radius: 50%;
+    background: rgba(255,246,220,.26); transition: all .3s; pointer-events: auto; cursor: pointer;
+  }
+  .rail b.on { background: var(--gold); transform: scale(1.5); }
+  .count {
+    position: fixed; inset: clamp(14px,2vmin,26px) auto auto clamp(14px,2vmin,26px);
+    z-index: 30; font-size: clamp(12px,1.5vmin,17px); color: var(--muted);
+    font-variant-numeric: tabular-nums; letter-spacing: .1em;
+  }
+  .hint {
+    /* Bottom-LEFT: the slide footer is Arabic and sits bottom-right, and the
+       two ran into each other there. */
+    position: fixed; inset: auto auto clamp(34px,4vmin,54px) clamp(14px,2vmin,26px);
+    z-index: 30; font-size: clamp(11px,1.35vmin,15px); color: var(--muted);
+    transition: opacity .6s; text-align: left; direction: ltr; line-height: 1.9;
+  }
+  .hint.fade { opacity: 0; }
+  kbd {
+    font: inherit; background: rgba(255,246,220,.12); border: 1px solid rgba(255,246,220,.22);
+    border-radius: 5px; padding: .1em .45em; margin: 0 .12em;
+  }
+
+  /* ---- overview (Esc) ------------------------------------------------ */
+  .over {
+    position: fixed; inset: 0; z-index: 40; background: rgba(6,10,4,.97);
+    display: none; place-content: center; padding: var(--pad);
+  }
+  .over.on { display: grid; }
+  .over ol { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(6px,1.1vmin,14px); }
+  .over li {
+    display: flex; align-items: baseline; gap: 1em; cursor: pointer; padding: .3em .8em;
+    border-radius: 12px; font-size: clamp(20px, 3.6vmin, 44px); font-weight: 700;
+    font-family: 'Poster Display', sans-serif;
+  }
+  .over li:hover, .over li.on { background: rgba(255,246,220,.1); }
+  .over li i { font-style: normal; color: var(--gold); font-size: .6em; width: 1.4em; }
+  .over li em { font-style: normal; font-size: .48em; color: var(--muted); font-family: 'Poster Text', sans-serif; font-weight: 600; }
+
+  /* ---- the games and book panes ------------------------------------- */
+  .pane { width: 100%; height: 100%; display: grid; grid-template-rows: 1fr auto; gap: .7em; }
+  .paneBar { display: flex; align-items: center; justify-content: center; gap: 1em;
+    font-size: clamp(12px,1.6vmin,18px); color: var(--muted); }
+  .btn {
+    font: inherit; font-weight: 700; cursor: pointer; color: var(--paper);
+    background: rgba(255,246,220,.12); border: 2px solid rgba(255,246,220,.24);
+    border-radius: 10px; padding: .35em 1em;
+  }
+  .btn:hover { background: rgba(255,246,220,.2); }
+  .btn:active { transform: translateY(1px); }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- 1 ------------------------------------------------------------- -->
+  <section class="slide" id="s-title" data-title="الغلاف" data-name="البداية">
+    <div class="bg-poster" style="--shot:url('out/poster.png')"></div>
+    <div class="vignette"></div>
+    <div class="wrap">
+      <div class="kicker">مشروع تخرّج</div>
+      <h1>الخراف الثلاثة<br>والذئب الماكر</h1>
+      <div class="sub">فيلم رسوم متحركة · ملصق · إعلان · كتاب · سبع ألعاب</div>
+      <div class="sub" style="margin-top:1.4em">كلية فلسطين التقنية — دير البلح<br>الوسائط المتعددة والرسوم المتحركة</div>
+    </div>
+  </section>
+
+  <!-- 2 ------------------------------------------------------------- -->
+  <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
+    <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
+    <div class="stage"><img class="poster" src="out/poster.png" alt="ملصق الفيلم" loading="lazy"></div>
+    <div class="foot"><span>رُسم بالكامل من مشاهد الفيلم نفسها</span></div>
+  </section>
+
+  <!-- 3 ------------------------------------------------------------- -->
+  <section class="slide" id="s-promo" data-title="الإعلان" data-name="الإعلان">
+    <div><div class="kicker">٠٢ — الإعلان التشويقي</div><h2>الإعلان</h2></div>
+    <div class="stage">
+      <video id="v-promo" src="out/promo.mp4" preload="metadata" playsinline controls></video>
+      <div class="tap" data-for="v-promo"><span>▶</span></div>
+    </div>
+    <div class="foot"><span>٢٧ ثانية · موسيقى ومؤثرات</span></div>
+  </section>
+
+  <!-- 4 ------------------------------------------------------------- -->
+  <section class="slide" id="s-film" data-title="الفيلم" data-name="الفيلم">
+    <div>
+      <div class="kicker">٠٣ — الفيلم</div>
+      <h2>الفيلم <span class="badge wip">قيد الإنتاج</span></h2>
+    </div>
+    <div class="stage">
+      <video id="v-film" src="out/promo-narrated.mp4" preload="none" playsinline controls></video>
+      <div class="tap" data-for="v-film"><span>▶</span></div>
+    </div>
+    <div class="foot"><span>تُعرض النسخة المعلَّق عليها من الإعلان ريثما يكتمل الفيلم</span></div>
+  </section>
+
+  <!-- 5 ------------------------------------------------------------- -->
+  <section class="slide" id="s-games" data-title="الألعاب" data-name="الألعاب">
+    <div><div class="kicker">٠٤ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
+    <div class="stage">
+      <div class="pane">
+        <div class="holder" id="games-holder"></div>
+        <div class="paneBar">
+          <span>تعمل بلا إنترنت · تُثبَّت على الهاتف</span>
+          <button class="btn" id="games-open">فتحها في نافذة كاملة</button>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>ابنِ بيتك · لا تفتح الباب · اهرب · المدخنة · من قال هذا؟ · أعِد البناء · كيف يشعر؟</span></div>
+  </section>
+
+  <!-- 6 ------------------------------------------------------------- -->
+  <section class="slide" id="s-book" data-title="الكتاب" data-name="الكتاب">
+    <div><div class="kicker">٠٥ — كتاب مصوّر</div><h2>الكتاب</h2></div>
+    <div class="stage">
+      <div class="pane">
+        <div class="holder" id="book-holder"></div>
+        <div class="paneBar">
+          <button class="btn" id="book-prev">السابقة ›</button>
+          <span id="book-count">—</span>
+          <button class="btn" id="book-next">‹ التالية</button>
+          <span style="opacity:.7">أو <kbd>←</kbd> <kbd>→</kbd> — وبعد آخر صفحة تتابع إلى القسم التالي</span>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>٢٣ صفحة، رُسمت كلّها من مشاهد الفيلم</span></div>
+  </section>
+
+  <!-- 7 ------------------------------------------------------------- -->
+  <section class="slide" id="s-end" data-title="الخاتمة" data-name="شكراً">
+    <div class="bg-poster" style="--shot:url('out/poster.png')"></div>
+    <div class="vignette"></div>
+    <div style="z-index:1"><div class="kicker">٠٦</div></div>
+    <div class="stage" style="z-index:1">
+      <div style="text-align:center">
+        <h1>شكراً لكم</h1>
+        <div class="sub" style="margin-top:1.2em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
+      </div>
+    </div>
+    <div class="foot" style="z-index:1;justify-content:center"><span>كلية فلسطين التقنية — دير البلح</span></div>
+  </section>
+</div>
+
+<div class="count" id="count">١ / ٧</div>
+<nav class="rail" id="rail"></nav>
+<div class="hint" id="hint">
+  <kbd>←</kbd><kbd>→</kbd> move &nbsp;·&nbsp; <kbd>Esc</kbd> overview &nbsp;·&nbsp; <kbd>F</kbd> fullscreen
+</div>
+
+<div class="over" id="over"><ol id="overList"></ol></div>
+
+<script type="module">
+  const slides = [...document.querySelectorAll('.slide')];
+  const rail = document.getElementById('rail');
+  const count = document.getElementById('count');
+  const over = document.getElementById('over');
+  const overList = document.getElementById('overList');
+  const hint = document.getElementById('hint');
+  const ar = (n) => String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
+
+  let at = 0;
+
+  // ---- chrome ---------------------------------------------------------
+  slides.forEach((s, i) => {
+    const dot = document.createElement('b');
+    dot.title = s.dataset.name;
+    dot.addEventListener('click', () => go(i));
+    rail.appendChild(dot);
+
+    const li = document.createElement('li');
+    li.innerHTML = `<i>${ar(i + 1)}</i><span>${s.dataset.name}</span> <em>${s.dataset.title}</em>`;
+    li.addEventListener('click', () => { closeOver(); go(i); });
+    overList.appendChild(li);
+  });
+  const dots = [...rail.children];
+  const overItems = [...overList.children];
+
+  // ---- navigation -----------------------------------------------------
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    if (i === at) return;
+    // Anything playing on the way out stays quiet on the way in. A video that
+    // keeps talking over the next section is the classic deck failure.
+    slides[at].querySelectorAll('video').forEach((v) => v.pause());
+    slides[at].classList.remove('on');
+    at = i;
+    slides[at].classList.add('on');
+    dots.forEach((d, k) => d.classList.toggle('on', k === at));
+    overItems.forEach((d, k) => d.classList.toggle('on', k === at));
+    count.textContent = `${ar(at + 1)} / ${ar(slides.length)}`;
+    onEnter(slides[at]);
+  }
+  const next = () => go(at + 1);
+  const prev = () => go(at - 1);
+
+  function openOver() { over.classList.add('on'); }
+  function closeOver() { over.classList.remove('on'); }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const onBook = slides[at].id === 's-book';
+    switch (e.key) {
+      case 'Escape':
+        over.classList.contains('on') ? closeOver() : openOver();
+        break;
+      // On the book, the arrows turn pages — but only while there are pages
+      // left to turn. Past the last one they carry on into the next section,
+      // so holding the same key never strands the presenter mid-deck.
+      case 'ArrowRight':   // RTL: right is "back"
+        if (over.classList.contains('on')) return;
+        if (onBook && bookStep(-1)) break;
+        prev();
+        break;
+      case 'ArrowLeft':
+        if (over.classList.contains('on')) return;
+        if (onBook && bookStep(1)) break;
+        next();
+        break;
+      // Vertical always moves between sections, so the book slide still has a
+      // way out while ← → are busy turning its pages.
+      case 'ArrowDown': case 'PageDown': next(); break;
+      case 'ArrowUp': case 'PageUp': prev(); break;
+      case 'Home': go(0); break;
+      case 'End': go(slides.length - 1); break;
+      case ' ': {
+        // Space plays the video if there is one to play; otherwise it advances.
+        const v = slides[at].querySelector('video');
+        if (v) { v.paused ? v.play() : v.pause(); }
+        else next();
+        break;
+      }
+      case 'f': case 'F':
+        document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+        break;
+      default:
+        if (/^[1-9]$/.test(e.key)) go(+e.key - 1);
+        else return;
+    }
+    e.preventDefault();
+  });
+
+  // Touch, for running it off a tablet.
+  let tx = 0, ty = 0;
+  addEventListener('touchstart', (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+    if (slides[at].id === 's-book' && bookStep(dx > 0 ? -1 : 1)) return;
+    (dx > 0 ? prev : next)();
+  }, { passive: true });
+
+  // ---- per-slide behaviour -------------------------------------------
+  // The games and the book are whole applications. Building them up front
+  // would load tens of megabytes before the title card appears, so each is
+  // created the first time its section is reached and then kept.
+  function onEnter(s) {
+    if (s.id === 's-games') mountGames();
+    if (s.id === 's-book') mountBook();
+  }
+
+  let gamesFrame = null;
+  function mountGames() {
+    if (gamesFrame) return;
+    gamesFrame = document.createElement('iframe');
+    gamesFrame.className = 'frame';
+    // embed=1 keeps the install card from appearing inside the deck.
+    gamesFrame.src = './?embed=1';
+    gamesFrame.allow = 'autoplay; fullscreen';
+    document.getElementById('games-holder').appendChild(gamesFrame);
+  }
+  document.getElementById('games-open').addEventListener('click', () => window.open('./', '_blank'));
+
+  let bookFrame = null, bookPages = [], bookAt = 0;
+  const bookCount = document.getElementById('book-count');
+  function mountBook() {
+    if (bookFrame) return;
+    bookFrame = document.createElement('iframe');
+    bookFrame.className = 'frame';
+    bookFrame.src = 'out/book.html';
+    bookFrame.addEventListener('load', () => {
+      const doc = bookFrame.contentDocument;
+      if (!doc) return;
+      // Same origin, so the deck can drive the book instead of embedding a
+      // scrollbar in the middle of a presentation.
+      const css = doc.createElement('style');
+      css.textContent = `html{scroll-behavior:smooth}body{overflow:hidden}
+        body::-webkit-scrollbar{display:none}
+        .sheet{margin:0 auto!important}`;
+      doc.head.appendChild(css);
+      bookPages = [...doc.querySelectorAll('.sheet')];
+      bookAt = 0;
+      showBookPage();
+    });
+    document.getElementById('book-holder').appendChild(bookFrame);
+  }
+  function showBookPage() {
+    if (!bookPages.length) return;
+    bookPages[bookAt].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    bookCount.textContent = `${ar(bookAt + 1)} / ${ar(bookPages.length)}`;
+  }
+  /** Turn a page. Returns false when there was no page to turn to. */
+  function bookStep(d) {
+    if (!bookPages.length) return false;
+    const to = Math.max(0, Math.min(bookPages.length - 1, bookAt + d));
+    if (to === bookAt) return false;
+    bookAt = to;
+    showBookPage();
+    return true;
+  }
+  document.getElementById('book-next').addEventListener('click', () => bookStep(1));
+  document.getElementById('book-prev').addEventListener('click', () => bookStep(-1));
+
+  // ---- video play affordance -----------------------------------------
+  for (const tap of document.querySelectorAll('.tap')) {
+    const v = document.getElementById(tap.dataset.for);
+    tap.addEventListener('click', () => v.play());
+    v.addEventListener('play', () => tap.classList.add('gone'));
+    v.addEventListener('pause', () => tap.classList.remove('gone'));
+    v.addEventListener('ended', () => tap.classList.remove('gone'));
+  }
+
+  // ---- go --------------------------------------------------------------
+  slides[0].classList.add('on');
+  dots[0].classList.add('on');
+  overItems[0].classList.add('on');
+  setTimeout(() => hint.classList.add('fade'), 6000);
+  addEventListener('mousemove', () => {
+    hint.classList.remove('fade');
+    clearTimeout(hint._t);
+    hint._t = setTimeout(() => hint.classList.add('fade'), 3000);
+  });
+</script>
+</body>
+</html>

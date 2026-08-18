@@ -35,7 +35,25 @@ const EXCLUDE = [
 const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT })
   .toString('utf8').split('\0').filter(Boolean);
 
+// Finished renders. They live in out/ and are deliberately untracked — tens of
+// megabytes, all regenerable — but present.html shows them, so the deck would
+// be a row of broken frames without them. Listed by name rather than by
+// copying out/ wholesale, which would also ship 32 MB of music experiments and
+// every TTS take.
+const DELIVERABLES = [
+  'out/poster.png',
+  'out/promo.mp4',
+  'out/promo-narrated.mp4',
+  'out/book.html',
+];
+
 const files = tracked.filter((f) => !EXCLUDE.some((re) => re.test(f)));
+
+const gone = DELIVERABLES.filter((f) => !fs.existsSync(path.join(ROOT, f)));
+if (gone.length) {
+  console.warn('  the deck references renders that are missing:\n    ' + gone.join('\n    '));
+}
+files.push(...DELIVERABLES.filter((f) => fs.existsSync(path.join(ROOT, f))));
 
 fs.rmSync(DIST, { recursive: true, force: true });
 let bytes = 0;
