@@ -278,6 +278,52 @@
   }
   .tap.gone { opacity: 0; pointer-events: none; }
 
+  /* ---- the media sections, played full-bleed --------------------------
+     A trailer with a heading above it and a caption below it is a slide
+     about a trailer. The film, the games and the book fill the screen
+     instead, and the chrome goes on top and then leaves — there long enough
+     to say what is being shown, gone before it competes with it. While a
+     video is playing it never appears at all.
+
+     The grid collapses to one row and the padding goes, so the stage is the
+     slide; the head, the foot and the pane's own bar come out of the flow
+     and float over it. */
+  .slide.full { padding: 0; grid-template-rows: 1fr; }
+  .slide.full > .head,
+  .slide.full > .foot,
+  .slide.full .paneBar {
+    position: absolute; z-index: 3; left: var(--pad); right: var(--pad);
+    /* Over a bright frame of film, cream on its own is unreadable. */
+    text-shadow: 0 .06em .5em rgba(4,8,3,.95), 0 0 .3em rgba(4,8,3,.85);
+    transition: opacity .55s ease, visibility .55s;
+  }
+  .slide.full > .head { top: var(--pad); }
+  .slide.full .paneBar { bottom: calc(var(--pad) + 2.6em); }
+  .slide.full > .foot { bottom: var(--pad); justify-content: flex-start; }
+  .slide.full.bare > .head,
+  .slide.full.bare > .foot,
+  .slide.full.bare .paneBar { opacity: 0; visibility: hidden; }
+  /* A <video controls> puts its own bar along the bottom, and the caption
+     lands on top of the volume button. Lift it clear — only where there is a
+     video to be clear of. */
+  .slide.full:has(video) > .foot { bottom: calc(var(--pad) + 3em); }
+  /* The deck's own furniture goes with them. Half a screen of film with a
+     page counter still sitting on it is not full-bleed. */
+  body.bare .count, body.bare .rail, body.bare .hint {
+    opacity: 0; visibility: hidden; transition: opacity .55s ease, visibility .55s;
+  }
+
+  /* Edge to edge. `contain` rather than `cover`: a trailer cropped to fit
+     the projector is worse than a band of black at the sides. */
+  .slide.full .stage { place-items: stretch; }
+  .slide.full video {
+    width: 100%; height: 100%; max-width: none; max-height: none;
+    object-fit: contain; border-radius: 0; box-shadow: none; background: #000;
+  }
+  .slide.full .pane { grid-template-rows: 1fr; gap: 0; }
+  .slide.full .frame { border-radius: 0; box-shadow: none; }
+  .slide.full .tap { border-radius: 0; }
+
   /* ---- chrome -------------------------------------------------------- */
   .rail {
     position: fixed; inset: auto 0 clamp(10px, 1.6vmin, 22px) 0; z-index: 30;
@@ -368,8 +414,8 @@
   </section>
 
   <!-- 3 ------------------------------------------------------------- -->
-  <section class="slide" id="s-promo" data-title="الإعلان" data-name="الإعلان">
-    <div><div class="kicker">٠٢ — الإعلان التشويقي</div><h2>الإعلان</h2></div>
+  <section class="slide full" id="s-promo" data-title="الإعلان" data-name="الإعلان">
+    <div class="head"><div class="kicker">٠٢ — الإعلان التشويقي</div><h2>الإعلان</h2></div>
     <div class="stage">
       <video id="v-promo" src="out/promo.mp4" preload="metadata" playsinline controls></video>
       <div class="tap" data-for="v-promo"><span>▶</span></div>
@@ -378,8 +424,8 @@
   </section>
 
   <!-- 4 ------------------------------------------------------------- -->
-  <section class="slide" id="s-film" data-title="الفيلم" data-name="الفيلم">
-    <div>
+  <section class="slide full" id="s-film" data-title="الفيلم" data-name="الفيلم">
+    <div class="head">
       <div class="kicker">٠٣ — الفيلم</div>
       <h2>الفيلم <span class="badge wip">قيد الإنتاج</span></h2>
     </div>
@@ -391,8 +437,8 @@
   </section>
 
   <!-- 5 ------------------------------------------------------------- -->
-  <section class="slide" id="s-games" data-title="الألعاب" data-name="الألعاب">
-    <div><div class="kicker">٠٤ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
+  <section class="slide full" id="s-games" data-title="الألعاب" data-name="الألعاب">
+    <div class="head"><div class="kicker">٠٤ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
     <div class="stage">
       <div class="pane">
         <div class="holder" id="games-holder"></div>
@@ -406,8 +452,8 @@
   </section>
 
   <!-- 6 ------------------------------------------------------------- -->
-  <section class="slide" id="s-book" data-title="الكتاب" data-name="الكتاب">
-    <div><div class="kicker">٠٥ — كتاب مصوّر</div><h2>الكتاب</h2></div>
+  <section class="slide full" id="s-book" data-title="الكتاب" data-name="الكتاب">
+    <div class="head"><div class="kicker">٠٥ — كتاب مصوّر</div><h2>الكتاب</h2></div>
     <div class="stage">
       <div class="pane">
         <div class="holder" id="book-holder"></div>
@@ -541,6 +587,10 @@
     // keeps talking over the next section is the classic deck failure.
     slides[at].querySelectorAll('video').forEach((v) => v.pause());
     slides[at].classList.remove('on');
+    // Left bare, a section would come back bare next time it is reached.
+    clearTimeout(bareTimer);
+    slides[at].classList.remove('bare');
+    document.body.classList.remove('bare');
     at = i;
     slides[at].classList.add('on');
     dots.forEach((d, k) => d.classList.toggle('on', k === at));
@@ -607,6 +657,34 @@
     (dx > 0 ? prev : next)();
   }, { passive: true });
 
+  // ---- the overlay chrome on the full-bleed sections -------------------
+  // It names what is on screen and then gets out of the way. A video starting
+  // takes it immediately and it stays away for as long as that video runs;
+  // moving the mouse brings it back, but only when nothing is playing, which
+  // is the same bargain a video player makes with its own controls.
+  const BARE_AFTER = 2200;
+  let bareTimer = 0;
+  function chrome(s, show) {
+    if (!s || !s.classList.contains('full')) return;
+    clearTimeout(bareTimer);
+    const bare = (on) => {
+      s.classList.toggle('bare', on);
+      document.body.classList.toggle('bare', on);
+    };
+    if (!show) { bare(true); return; }
+    const playing = [...s.querySelectorAll('video')].some((v) => !v.paused && !v.ended);
+    if (playing) { bare(true); return; }
+    bare(false);
+    bareTimer = setTimeout(() => bare(true), BARE_AFTER);
+  }
+  for (const v of document.querySelectorAll('video')) {
+    const s = v.closest('.slide');
+    v.addEventListener('play', () => chrome(s, false));
+    v.addEventListener('pause', () => chrome(s, true));
+    v.addEventListener('ended', () => chrome(s, true));
+  }
+  addEventListener('mousemove', () => chrome(slides[at], true));
+
   // ---- per-slide behaviour -------------------------------------------
   // The games and the book are whole applications. Building them up front
   // would load tens of megabytes before the title card appears, so each is
@@ -614,6 +692,7 @@
   function onEnter(s) {
     if (s.id === 's-games') mountGames();
     if (s.id === 's-book') mountBook();
+    chrome(s, true);
   }
 
   let gamesFrame = null;
@@ -641,9 +720,22 @@
       // Same origin, so the deck can drive the book instead of embedding a
       // scrollbar in the middle of a presentation.
       const css = doc.createElement('style');
-      css.textContent = `html{scroll-behavior:smooth}body{overflow:hidden}
+      // Each sheet is made exactly one frame tall and its page scaled to fill
+      // it, so scrolling to a sheet lands it filling the frame. The book's own
+      // layout is a scrolling column with 28px between sheets, which on a
+      // full-bleed frame shows the neighbours above and below; and its pages
+      // carry width="1280" height="720", which without this render at that
+      // size in the middle of a larger frame rather than growing to it. The
+      // viewBox does the fitting, so the aspect is safe.
+      css.textContent = `html{scroll-behavior:smooth}
+        body{overflow:hidden;margin:0!important;padding:0!important;background:#000}
         body::-webkit-scrollbar{display:none}
-        .sheet{margin:0 auto!important}`;
+        .sheet{
+          height:100vh!important; width:100%!important; margin:0!important;
+          border-radius:0!important; box-shadow:none!important;
+          display:flex; align-items:center; justify-content:center;
+        }
+        .sheet svg{width:100%!important; height:100%!important}`;
       doc.head.appendChild(css);
       bookPages = [...doc.querySelectorAll('.sheet')];
       bookAt = 0;
