@@ -38,6 +38,10 @@ const TAU = Math.PI * 2;
 /** The smallest sheep is drawn in a T-pose; his arms need a rest angle. */
 const REST_ARMS_SMALL = [REST_ARMS['اليد_ش'], REST_ARMS['اليد_ي']];
 
+// Unique per build: replaying adds fresh defs, and a repeated id would have
+// every <use> resolve to the stale copy from the previous round.
+let panoUid = 0;
+
 export async function start(ctx) {
   const { layers } = ctx;
 
@@ -48,42 +52,72 @@ export async function start(ctx) {
   // Pin the running ground to the bottom of the screen, whatever its shape.
   fitGround(layers);
   onViewChange(() => fitGround(layers));
-  // The set is not designed to tile, so butting two copies together leaves a
-  // hard vertical seam. Mirroring the odd copy makes its left edge identical
-  // to the even copy's right edge, so every join lines up.
+  // The set is a painted panorama — طويله, one long strip of sky, mountains
+  // and field — rather than a screen-sized plate. Measured, its artwork sits
+  // at x 275..1231, y 237..489: the sky runs ten units further right than the
+  // grass does, so the box stops at the grass and the nested <svg> clips the
+  // overhang. Otherwise every join shows a sliver of bare sky under the
+  // horizon.
+  const PANO = { x: 275, y: 236.8, w: 956, h: 252.6 };
+  // Scaled to fill the frame's height, one copy is 2725 wide — over two
+  // screens. The run is 3400 long, so the ground never wraps: the tiles are
+  // there to cover the distance, not to recycle. The modulo is kept anyway so
+  // that raising GOAL cannot silently run off the end of the world.
+  const TILE_W = Math.round((PANO.w * H) / PANO.h);
+
+  // Mirroring the odd copies makes each join exact: a mirrored tile's left
+  // edge IS its neighbour's right edge, whatever the painting does. Direct
+  // butting does not work here — the strip's own two ends differ, the left
+  // carrying the sun, house and road that the right does not.
   //
-  // But mirroring makes the pattern repeat every 2W, not W. With only two
-  // tiles recycling on a W period, each wrap swapped a mirrored tile for an
-  // unmirrored one at the same position: edges still matched, yet the content
-  // flipped in a single frame. That is the hitch — the picture appeared to
-  // stutter and the characters to jump backwards, because everything behind
-  // them changed at once.
+  // Mirroring means the pattern repeats every 2 tiles, not one, which is why
+  // the scroll is taken modulo 2*TILE_W.
   //
-  // Three tiles on a 2W period fix it: the tile that wraps in is always the
-  // same orientation as the one it replaces, so the swap is invisible.
-  // Each tile is a nested <svg>, which clips its contents to exactly W×H.
-  //
-  // That clip is the whole fix. The set does not occupy the 1280×720 box it
-  // appears to: مشهد12 measures x=-211, width=1535, so the painting spills
-  // 211 units left of its origin and 44 past the right edge. Tiling at 1280
-  // therefore overlapped neighbours by 255 units, and what looked like a seam
-  // was one painting's own edge lying across the next one.
-  const TILES = 3;
+  // Four tiles, indexed from -1: at the start of the run the offset is zero,
+  // and on a wide screen the visible area begins left of the origin. Three
+  // tiles starting at zero leave that strip bare for the first frames.
+  const TILES = [-1, 0, 1, 2];
+  const ports = [];
   const tiles = [];
-  for (let i = 0; i < TILES; i++) {
+
+  // One copy of the artwork, referenced four times. The panorama is 2553
+  // paths; four real copies would be ten thousand nodes in the tree before a
+  // single sheep is drawn.
+  const panoId = `pano-${++panoUid}`;
+  const defs = svgEl('defs');
+  const panoNode = await loadScene('طويله');
+  panoNode.setAttribute('id', panoId);
+  defs.appendChild(panoNode);
+  scroll.appendChild(defs);
+
+  for (const i of TILES) {
     const g = svgEl('g');
-    const port = svgEl('svg', { x: view.x, y: view.y, width: view.w, height: view.h, viewBox: `0 0 ${W} ${H}` });
-    const inner = svgEl('g');
-    inner.appendChild(await loadScene('مشهد12'));
-    // Odd tiles mirror, so an odd tile's left edge is the even tile's right
-    // edge and every join matches. Mirroring makes the pattern repeat every
-    // 2W, which is why there are three tiles and not two.
-    if (i % 2 === 1) inner.setAttribute('transform', `translate(${W} 0) scale(-1 1)`);
+    // preserveAspectRatio="none" so the strip always fills the frame: on a
+    // tall screen it stretches rather than letterboxing to bare background.
+    const port = svgEl('svg', {
+      x: 0, y: view.y, width: TILE_W, height: view.h,
+      viewBox: `${PANO.x} ${PANO.y} ${PANO.w} ${PANO.h}`,
+      preserveAspectRatio: 'none',
+    });
+    const inner = svgEl('use', { href: `#${panoId}` });
+    inner.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#${panoId}`);
+    if (Math.abs(i % 2) === 1) {
+      inner.setAttribute('transform',
+        `translate(${PANO.x * 2 + PANO.w} 0) scale(-1 1)`);
+    }
     port.appendChild(inner);
     g.appendChild(port);
     scroll.appendChild(g);
     tiles.push(g);
+    ports.push(port);
   }
+
+  /** Keep the strip filling the frame when the window shape changes. */
+  const fitPorts = () => {
+    for (const p of ports) { p.setAttribute('y', view.y); p.setAttribute('height', view.h); }
+  };
+  fitPorts();
+  onViewChange(fitPorts);
 
   const runner = await loadCharacter('small', 'front');
   const runHolder = svgEl('g');
@@ -138,7 +172,7 @@ export async function start(ctx) {
   const seams = svgEl('g');
   layers.bg.appendChild(seams);
   const seamNodes = [];
-  for (let i = 0; i < TILES + 1; i++) {
+  for (let i = 0; i < TILES.length + 1; i++) {
     const t = seamTree(0);
     seams.appendChild(t);
     seamNodes.push(t);
@@ -330,17 +364,18 @@ export async function start(ctx) {
     gap += SPEED * (1 - slow) * dt;
 
     // Ground scroll on the mirrored pattern's true period.
-    const off = -(dist % (2 * W));
-    for (let i = 0; i < TILES; i++) {
-      // Spacing must be exactly W. Overlapping the joins by a unit to hide a
-      // hairline would make the tiles span 2W-2 while the wrap still happens
-      // at 2W, so every wrap would shift the world by two units — trading a
-      // hairline for a jump. The hairline is dealt with in the tile itself.
-      tiles[i].setAttribute('transform', `translate(${rnd(off + i * W)} 0)`);
+    const off = -(dist % (2 * TILE_W));
+    for (let i = 0; i < TILES.length; i++) {
+      // Spacing must be exactly TILE_W. Overlapping the joins by a unit to
+      // hide a hairline would make the tiles span 2*TILE_W-2 while the wrap
+      // still happens at 2*TILE_W, so every wrap would shift the world by two
+      // units — trading a hairline for a jump. The hairline is dealt with by
+      // the nested <svg>'s own clip.
+      tiles[i].setAttribute('transform', `translate(${rnd(off + TILES[i] * TILE_W)} 0)`);
     }
     // A tree stands on every join, so the cut is never visible.
     for (let i = 0; i < seamNodes.length; i++) {
-      seamNodes[i].setAttribute('transform', `translate(${rnd(off + i * W)} 0)`);
+      seamNodes[i].setAttribute('transform', `translate(${rnd(off + (i - 1) * TILE_W)} 0)`);
     }
 
     // Jump arc.
