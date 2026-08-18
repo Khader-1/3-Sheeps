@@ -784,7 +784,11 @@
   // Each reading holds long enough to be talked over. Any key skips the whole
   // thing, so it is a flourish and never a wait.
   const TALLY_HOLD = 2000;   // how long each wrong count stays up
-  const TALLY_LAST = 2400;   // and the true one, before it lifts
+  const TALLY_CUT = 700;     // and then how long it stays up struck through:
+                             // 220ms of that is the rule sweeping across, so
+                             // the rest is what the crossing-out is actually
+                             // readable for
+  const TALLY_LAST = 2400;   // the true one, before it lifts
   const tally = document.getElementById('tally');
   const tallyN = document.getElementById('tally-n');
   const tallyA = document.getElementById('tally-a');
@@ -811,9 +815,9 @@
     tally.classList.add('on');
     const at = (ms, fn) => tallyRun.push(setTimeout(fn, ms));
     TALLY.slice(1).forEach(([n, adj], i) => {
-      const t = TALLY_HOLD * (i + 1);
+      const t = TALLY_HOLD + (TALLY_HOLD + TALLY_CUT) * i;
       at(t, () => tallyN.classList.add('cut'));
-      at(t + 300, () => {
+      at(t + TALLY_CUT, () => {
         tallyN.classList.remove('cut');
         tallyN.textContent = n;
         const changed = tallyA.textContent !== adj ? [tallyN, tallyA] : [tallyN];
@@ -825,7 +829,7 @@
         }
       });
     });
-    at(TALLY_HOLD * (TALLY.length - 1) + TALLY_LAST, countDone);
+    at((TALLY_HOLD + TALLY_CUT) * (TALLY.length - 1) + TALLY_LAST, countDone);
   }
 
   let gamesFrame = null;
