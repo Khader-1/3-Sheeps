@@ -357,11 +357,16 @@
   }
 
   /* ---- overview (Esc) ------------------------------------------------ */
+  /* Shown two ways: held open on Esc, and flashed on every move between
+     sections. So it fades rather than switching display, and its items are
+     marked with the destination before it appears. */
   .over {
     position: fixed; inset: 0; z-index: 40; background: rgba(6,10,4,.97);
-    display: none; place-content: center; padding: var(--pad);
+    display: grid; place-content: center; padding: var(--pad);
+    opacity: 0; visibility: hidden;
+    transition: opacity .18s ease, visibility .18s;
   }
-  .over.on { display: grid; }
+  .over.on { opacity: 1; visibility: visible; }
   .over ol { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(6px,1.1vmin,14px); }
   .over li {
     display: flex; align-items: baseline; gap: 1em; cursor: pointer; padding: .3em .8em;
@@ -513,7 +518,7 @@
 
     const li = document.createElement('li');
     li.innerHTML = `<i>${ar(i + 1)}</i><span>${s.dataset.name}</span> <em>${s.dataset.title}</em>`;
-    li.addEventListener('click', () => { closeOver(); go(i); });
+    li.addEventListener('click', () => { closeOver(); go(i, true); });
     overList.appendChild(li);
   });
   const dots = [...rail.children];
@@ -580,9 +585,7 @@
   }
 
   // ---- navigation -----------------------------------------------------
-  function go(i) {
-    i = Math.max(0, Math.min(slides.length - 1, i));
-    if (i === at) return;
+  function land(i) {
     // Anything playing on the way out stays quiet on the way in. A video that
     // keeps talking over the next section is the classic deck failure.
     slides[at].querySelectorAll('video').forEach((v) => v.pause());
@@ -594,33 +597,65 @@
     at = i;
     slides[at].classList.add('on');
     dots.forEach((d, k) => d.classList.toggle('on', k === at));
-    overItems.forEach((d, k) => d.classList.toggle('on', k === at));
     count.textContent = `${ar(at + 1)} / ${ar(slides.length)}`;
     onEnter(slides[at]);
+  }
+
+  // Every move goes through the overview. It comes up for a beat with the
+  // section being headed for already marked, the slides change behind it, and
+  // it lifts — so the room is told where it is going without the presenter
+  // having to say so, and the two sections never cross-dissolve into each
+  // other. Picking from the overview skips it, since it is already open, and
+  // so does a second keypress arriving mid-move: holding an arrow down should
+  // page through the deck, not queue a stack of curtains.
+  const STEP_IN = 170, STEP_HOLD = 220;
+  let moving = false, moveTimer = 0;
+
+  function go(i, fromOverview = false) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    if (i === at) return;
+    overItems.forEach((d, k) => d.classList.toggle('on', k === i));
+    if (fromOverview || moving) {
+      clearTimeout(moveTimer);
+      moving = false;
+      closeOver();
+      land(i);
+      return;
+    }
+    moving = true;
+    openOver();
+    moveTimer = setTimeout(() => {
+      land(i);
+      closeOver();
+      moveTimer = setTimeout(() => { moving = false; }, STEP_IN);
+    }, STEP_IN + STEP_HOLD);
   }
   const next = () => go(at + 1);
   const prev = () => go(at - 1);
 
   function openOver() { over.classList.add('on'); }
   function closeOver() { over.classList.remove('on'); }
+  /** Open only when the presenter asked for it, not mid-move. */
+  const overHeld = () => over.classList.contains('on') && !moving;
 
   document.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const onBook = slides[at].id === 's-book';
     switch (e.key) {
       case 'Escape':
-        over.classList.contains('on') ? closeOver() : openOver();
+        if (moving) break;
+        overHeld() ? closeOver() : openOver();
         break;
       // On the book, the arrows turn pages — but only while there are pages
       // left to turn. Past the last one they carry on into the next section,
       // so holding the same key never strands the presenter mid-deck.
       case 'ArrowRight':   // RTL: right is "back"
-        if (over.classList.contains('on')) return;
+        if (overHeld()) return;
         if (onBook && bookStep(-1)) break;
         prev();
         break;
       case 'ArrowLeft':
-        if (over.classList.contains('on')) return;
+        if (overHeld()) return;
         if (onBook && bookStep(1)) break;
         next();
         break;
@@ -720,22 +755,41 @@
       // Same origin, so the deck can drive the book instead of embedding a
       // scrollbar in the middle of a presentation.
       const css = doc.createElement('style');
-      // Each sheet is made exactly one frame tall and its page scaled to fill
-      // it, so scrolling to a sheet lands it filling the frame. The book's own
-      // layout is a scrolling column with 28px between sheets, which on a
-      // full-bleed frame shows the neighbours above and below; and its pages
-      // carry width="1280" height="720", which without this render at that
-      // size in the middle of a larger frame rather than growing to it. The
-      // viewBox does the fitting, so the aspect is safe.
-      css.textContent = `html{scroll-behavior:smooth}
-        body{overflow:hidden;margin:0!important;padding:0!important;background:#000}
+      // The book ships as a scrolling column of sheets 28px apart. Here they
+      // are stacked instead, one to a frame, and only the current one shows —
+      // which is what lets a page turn rather than scroll. Its pages carry
+      // width="1280" height="720" and would otherwise sit at that size in the
+      // middle of a larger frame; the viewBox does the fitting, so overriding
+      // both to 100% is safe.
+      //
+      // The turn is a rotation about the spine. Arabic binds on the right, so
+      // that is the origin, and going forward the page you are leaving lifts
+      // by its left edge and swings over to the right. backface-visibility
+      // takes it out of sight as it passes edge-on, which is also the moment
+      // the page beneath is fully uncovered.
+      css.textContent = `
+        html,body{height:100%;overflow:hidden;margin:0!important;padding:0!important}
+        body{background:#0b1207; perspective:2200px}
         body::-webkit-scrollbar{display:none}
         .sheet{
-          height:100vh!important; width:100%!important; margin:0!important;
+          position:absolute!important; inset:0; margin:0!important;
+          width:100%!important; height:100%!important;
           border-radius:0!important; box-shadow:none!important;
           display:flex; align-items:center; justify-content:center;
+          transform-origin:right center; backface-visibility:hidden;
+          visibility:hidden; will-change:transform;
         }
-        .sheet svg{width:100%!important; height:100%!important}`;
+        .sheet svg{width:100%!important; height:100%!important}
+        .sheet.cur,.sheet.under{visibility:visible; z-index:1}
+        .sheet.turning{visibility:visible; z-index:3}
+        @keyframes turnFwd{
+          from{transform:rotateY(0deg);    filter:brightness(1)}
+          to  {transform:rotateY(-180deg); filter:brightness(.5)}
+        }
+        @keyframes turnBack{
+          from{transform:rotateY(-180deg); filter:brightness(.5)}
+          to  {transform:rotateY(0deg);    filter:brightness(1)}
+        }`;
       doc.head.appendChild(css);
       bookPages = [...doc.querySelectorAll('.sheet')];
       bookAt = 0;
@@ -743,18 +797,57 @@
     });
     document.getElementById('book-holder').appendChild(bookFrame);
   }
-  function showBookPage() {
-    if (!bookPages.length) return;
-    bookPages[bookAt].scrollIntoView({ block: 'center', behavior: 'smooth' });
-    bookCount.textContent = `${ar(bookAt + 1)} / ${ar(bookPages.length)}`;
+  const BOOK_TURN = 640;
+  let bookTimer = 0;
+
+  /** Show the current page and nothing else. */
+  function bookSettle() {
+    bookPages.forEach((s, i) => {
+      s.className = 'sheet' + (i === bookAt ? ' cur' : '');
+      s.style.animation = '';
+    });
   }
+
+  function showBookPage(dir = 0) {
+    if (!bookPages.length) return;
+    bookCount.textContent = `${ar(bookAt + 1)} / ${ar(bookPages.length)}`;
+    clearTimeout(bookTimer);
+    const from = dir ? bookPages[bookAt - dir] : null;
+    if (!from) { bookSettle(); return; }
+
+    // The page that moves is the one whose face you would lift: going forward
+    // that is the page being left, going back it is the page being returned
+    // to, arriving from over the spine. The other one waits underneath.
+    const to = bookPages[bookAt];
+    const mover = dir > 0 ? from : to;
+    const still = dir > 0 ? to : from;
+    bookPages.forEach((s) => { s.className = 'sheet'; s.style.animation = ''; });
+    still.classList.add('under');
+    mover.classList.add('turning');
+    mover.style.animation =
+      `${dir > 0 ? 'turnFwd' : 'turnBack'} ${BOOK_TURN}ms cubic-bezier(.4,.05,.25,1) forwards`;
+    paper();
+    bookTimer = setTimeout(bookSettle, BOOK_TURN + 40);
+  }
+
+  // One page going over, synthesised in tools/gen-sfx.mjs alongside the film's
+  // other effects. Cloned per turn so a fast reader's pages overlap instead of
+  // cutting each other off.
+  const paperSrc = new Audio('assets/audio/sfx/page-turn.wav');
+  paperSrc.preload = 'auto';
+  function paper() {
+    const a = paperSrc.cloneNode();
+    a.volume = 0.5;
+    a.play().catch(() => {});
+  }
+
   /** Turn a page. Returns false when there was no page to turn to. */
   function bookStep(d) {
     if (!bookPages.length) return false;
     const to = Math.max(0, Math.min(bookPages.length - 1, bookAt + d));
     if (to === bookAt) return false;
     bookAt = to;
-    showBookPage();
+    showBookPage(d);
     return true;
   }
   document.getElementById('book-next').addEventListener('click', () => bookStep(1));
