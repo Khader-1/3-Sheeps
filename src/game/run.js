@@ -7,9 +7,8 @@
 // the timeline: limbs are posed from a phase that advances with the ground, so
 // the legs stay in step with the speed instead of sliding.
 
-import { svgEl } from '../rig.js';
+import { svgEl, fetchText } from '../rig.js';
 import { loadScene } from '../anim/stage.js';
-import { bboxIn } from '../rig.js';
 import { loadCharacter, applyExpression, restArms, REST_ARMS } from '../expressions.js';
 import { buildLimbChains, limbPivots } from '../anim/gait.js';
 import { W, H, CREAM, GREEN, RED, clamp01, rnd, panel, label, button, scrim, backChip, banner, view, coverView, onViewChange, band, fitGround } from './ui.js';
@@ -31,16 +30,41 @@ const STUMBLE_DUR = 0.85;
 const STUMBLE_SLOW = 0.32;
 /** Three trips and he is down for good. */
 const MAX_STUMBLES = 3;
-const GOAL = 3400;          // distance to the door
+// The painted run: one strip, measured, with the brother's house already in
+// it near the right end. Clipped to where the grass actually is — the sky runs
+// 48 units further right, and without the clip the last stretch shows a band
+// of bare sky under the horizon.
+const PANO = { x: 163.6, y: 301.2, w: 1115, h: 148.2 };
+const PANO_SCALE = H / PANO.h;
+const PANO_W = Math.round(PANO.w * PANO_SCALE);
+/** Where بيت_طوب_جاهز, painted in at x=1214, ends up once scaled. */
+const HOUSE_X = Math.round((1214 - PANO.x) * PANO_SCALE);
+/**
+ * Where the run ends.
+ *
+ * Short enough that the small house painted into the strip at HOUSE_X never
+ * scrolls into frame — it is scenery scale, 185 tall against a 210-tall sheep,
+ * which reads as a hut on the horizon rather than a door anyone could walk
+ * through. The finish is the real house instead, placed below. Also short
+ * enough that the right edge of the screen (GOAL + W = 5080) stays inside the
+ * painting (5417), so the last frame has ground under it.
+ */
+const GOAL = 3800;
+
+/** The brother's house at the finish — the artwork, at a size he could enter. */
+const HOUSE_SRC = '/assets/incoming/خلفيات/شخصيات svg/بيت-مجزأ.svg';
+const HOUSE_BOX = { x: 280, y: 123.3, w: 720, h: 475.2 };   // its own viewBox
+const HOUSE_H = 430;
+/**
+ * The door sits 24% along the front, so aligning the door — not the corner —
+ * with the runner's mark is what makes him finish AT it rather than beside it.
+ */
+const HOUSE_DOOR_FRAC = (452 - HOUSE_BOX.x) / HOUSE_BOX.w;
 const GRAVITY = 2100;
 const JUMP_V = 780;
 const TAU = Math.PI * 2;
 /** The smallest sheep is drawn in a T-pose; his arms need a rest angle. */
 const REST_ARMS_SMALL = [REST_ARMS['اليد_ش'], REST_ARMS['اليد_ي']];
-
-// Unique per build: replaying adds fresh defs, and a repeated id would have
-// every <use> resolve to the stale copy from the previous round.
-let panoUid = 0;
 
 export async function start(ctx) {
   const { layers } = ctx;
@@ -52,72 +76,40 @@ export async function start(ctx) {
   // Pin the running ground to the bottom of the screen, whatever its shape.
   fitGround(layers);
   onViewChange(() => fitGround(layers));
-  // The set is a painted panorama — طويله, one long strip of sky, mountains
-  // and field — rather than a screen-sized plate. Measured, its artwork sits
-  // at x 275..1231, y 237..489: the sky runs ten units further right than the
-  // grass does, so the box stops at the grass and the nested <svg> clips the
-  // overhang. Otherwise every join shows a sliver of bare sky under the
-  // horizon.
-  const PANO = { x: 275, y: 236.8, w: 956, h: 252.6 };
-  // Scaled to fill the frame's height, one copy is 2725 wide — over two
-  // screens. The run is 3400 long, so the ground never wraps: the tiles are
-  // there to cover the distance, not to recycle. The modulo is kept anyway so
-  // that raising GOAL cannot silently run off the end of the world.
-  const TILE_W = Math.round((PANO.w * H) / PANO.h);
-
-  // Mirroring the odd copies makes each join exact: a mirrored tile's left
-  // edge IS its neighbour's right edge, whatever the painting does. Direct
-  // butting does not work here — the strip's own two ends differ, the left
-  // carrying the sun, house and road that the right does not.
-  //
-  // Mirroring means the pattern repeats every 2 tiles, not one, which is why
-  // the scroll is taken modulo 2*TILE_W.
-  //
-  // Four tiles, indexed from -1: at the start of the run the offset is zero,
-  // and on a wide screen the visible area begins left of the origin. Three
-  // tiles starting at zero leave that strip bare for the first frames.
-  const TILES = [-1, 0, 1, 2];
-  const ports = [];
-  const tiles = [];
-
-  // One copy of the artwork, referenced four times. The panorama is 2553
-  // paths; four real copies would be ten thousand nodes in the tree before a
-  // single sheep is drawn.
-  const panoId = `pano-${++panoUid}`;
-  const defs = svgEl('defs');
-  const panoNode = await loadScene('طويله');
-  panoNode.setAttribute('id', panoId);
-  defs.appendChild(panoNode);
-  scroll.appendChild(defs);
-
-  for (const i of TILES) {
-    const g = svgEl('g');
-    // preserveAspectRatio="none" so the strip always fills the frame: on a
-    // tall screen it stretches rather than letterboxing to bare background.
-    const port = svgEl('svg', {
-      x: 0, y: view.y, width: TILE_W, height: view.h,
-      viewBox: `${PANO.x} ${PANO.y} ${PANO.w} ${PANO.h}`,
-      preserveAspectRatio: 'none',
-    });
-    const inner = svgEl('use', { href: `#${panoId}` });
-    inner.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#${panoId}`);
-    if (Math.abs(i % 2) === 1) {
-      inner.setAttribute('transform',
-        `translate(${PANO.x * 2 + PANO.w} 0) scale(-1 1)`);
-    }
-    port.appendChild(inner);
-    g.appendChild(port);
-    scroll.appendChild(g);
-    tiles.push(g);
-    ports.push(port);
-  }
+  // One strip, scaled to fill the frame's height and simply slid left. It was
+  // four mirrored tiles when the art was a screen-sized plate that had to be
+  // repeated; this painting is the whole run, house included, so there is
+  // nothing to stitch and no seam to hide.
+  const port = svgEl('svg', {
+    x: 0, y: view.y, width: PANO_W, height: view.h,
+    viewBox: `${PANO.x} ${PANO.y} ${PANO.w} ${PANO.h}`,
+    preserveAspectRatio: 'none',
+  });
+  port.appendChild(await loadScene('طويله بيت'));
+  scroll.appendChild(port);
 
   /** Keep the strip filling the frame when the window shape changes. */
-  const fitPorts = () => {
-    for (const p of ports) { p.setAttribute('y', view.y); p.setAttribute('height', view.h); }
-  };
-  fitPorts();
-  onViewChange(fitPorts);
+  const fitPort = () => { port.setAttribute('y', view.y); port.setAttribute('height', view.h); };
+  fitPort();
+  onViewChange(fitPort);
+
+  // The finish, standing on the same ground the runner does. It scrolls with
+  // the strip rather than being slid in separately, so it behaves like part of
+  // the world instead of a card that arrives.
+  {
+    const scale = HOUSE_H / HOUSE_BOX.h;
+    const doorX = HOUSE_BOX.w * scale * HOUSE_DOOR_FRAC;
+    const left = GOAL + RUNNER_X - doorX;
+    const g = svgEl('g', {
+      transform: `translate(${rnd(left - HOUSE_BOX.x * scale)} `
+        + `${rnd(GROUND + 10 - (HOUSE_BOX.y + HOUSE_BOX.h) * scale)}) scale(${rnd(scale)})`,
+    });
+    const doc = new DOMParser().parseFromString(await fetchText(HOUSE_SRC), 'image/svg+xml');
+    // Its children, not the <svg> itself: importing the root would nest a
+    // viewport with its own width and clip the house to it.
+    for (const child of [...doc.documentElement.children]) g.appendChild(document.importNode(child, true));
+    scroll.appendChild(g);
+  }
 
   const runner = await loadCharacter('small', 'front');
   const runHolder = svgEl('g');
@@ -136,76 +128,10 @@ export async function start(ctx) {
   const wolfLimbs = buildLimbChains(wolf);
   wolf.place({ x: WOLF_X, y: GROUND + 26, height: 300, flip: false });
 
-  /**
-   * A foreground tree, drawn in the film's flat style, tall enough to cover a
-   * tile join from top to bottom.
-   *
-   * These painted sets were never made to tile: mirroring lines up the pixels
-   * at the edge but the mountain silhouettes and the ground band still do not
-   * meet, so the join reads as a cut. Rather than repaint the set, every join
-   * gets a foreground element standing over it — the oldest trick in
-   * side-scrolling, and it adds depth as a bonus.
-   */
-  function seamTree(x) {
-    const g = svgEl('g', { 'data-part': 'seam-tree' });
-    const trunkW = 54;
-    g.appendChild(svgEl('path', {
-      d: `M ${x - trunkW / 2} ${H} L ${x - trunkW / 2 + 6} 250` +
-         ` Q ${x} 232 ${x + trunkW / 2 - 6} 250 L ${x + trunkW / 2} ${H} Z`,
-      fill: '#8a5a2b', stroke: '#3a230d', 'stroke-width': 6, 'stroke-linejoin': 'round',
-    }));
-    const blobs = [[0, 190, 132], [-92, 250, 104], [92, 244, 100], [-46, 140, 92], [52, 146, 88]];
-    for (const [dx, cy, r] of blobs) {
-      g.appendChild(svgEl('circle', {
-        cx: x + dx, cy, r, fill: '#3f7f2e', stroke: '#22491a', 'stroke-width': 6,
-      }));
-    }
-    for (const [dx, cy, r] of blobs.slice(0, 3)) {
-      g.appendChild(svgEl('circle', {
-        cx: x + dx - r * 0.22, cy: cy - r * 0.24, r: r * 0.52, fill: '#4f9a39', opacity: 0.85,
-      }));
-    }
-    return g;
-  }
-
-  // One tree per tile boundary, parked in world space and scrolled with it.
-  const seams = svgEl('g');
-  layers.bg.appendChild(seams);
-  const seamNodes = [];
-  for (let i = 0; i < TILES.length + 1; i++) {
-    const t = seamTree(0);
-    seams.appendChild(t);
-    seamNodes.push(t);
-  }
-
+  // Rocks live in the world layer with the runner, not in the scenery: they
+  // are things he hits, not things he runs past.
   const obstacles = svgEl('g');
   layers.world.appendChild(obstacles);
-
-  // The finish line is the brother's wood house. Loading the whole set brings
-  // its own sky, ground and palette along with it, which slid over the field
-  // as a second background. So the house is measured inside its set and a
-  // nested <svg> crops to exactly that box — and it goes in the background
-  // layer, behind the runner, where scenery belongs.
-  const goalHouse = svgEl('g', { opacity: 0 });
-  layers.bg.appendChild(goalHouse);
-  {
-    const probe = await loadScene('مشهد14');
-    layers.bg.appendChild(probe);
-    const houseEl = [...probe.querySelectorAll('g[id]')]
-      .find((g) => (g.getAttribute('id') || '').includes('بيت_خشب_جاهز'));
-    const b = houseEl ? bboxIn(houseEl, ctx.svg) : { x: 700, y: 150, width: 520, height: 470 };
-    probe.remove();
-
-    const pad = 30;
-    const vb = { x: b.x - pad, y: b.y - pad, w: b.width + pad * 2, h: b.height + pad * 2 };
-    const crop = svgEl('svg', {
-      x: 0, y: vb.y, width: vb.w, height: vb.h,
-      viewBox: `${rnd(vb.x)} ${rnd(vb.y)} ${rnd(vb.w)} ${rnd(vb.h)}`,
-    });
-    crop.appendChild(await loadScene('مشهد14'));
-    goalHouse.appendChild(crop);
-    goalHouse.dataset.w = vb.w;
-  }
 
   // ---------------------------------------------------------------- state
   let dist = 0, vy = 0, y = 0, hits = 0, over = false, started = false;
@@ -364,19 +290,7 @@ export async function start(ctx) {
     gap += SPEED * (1 - slow) * dt;
 
     // Ground scroll on the mirrored pattern's true period.
-    const off = -(dist % (2 * TILE_W));
-    for (let i = 0; i < TILES.length; i++) {
-      // Spacing must be exactly TILE_W. Overlapping the joins by a unit to
-      // hide a hairline would make the tiles span 2*TILE_W-2 while the wrap
-      // still happens at 2*TILE_W, so every wrap would shift the world by two
-      // units — trading a hairline for a jump. The hairline is dealt with by
-      // the nested <svg>'s own clip.
-      tiles[i].setAttribute('transform', `translate(${rnd(off + TILES[i] * TILE_W)} 0)`);
-    }
-    // A tree stands on every join, so the cut is never visible.
-    for (let i = 0; i < seamNodes.length; i++) {
-      seamNodes[i].setAttribute('transform', `translate(${rnd(off + (i - 1) * TILE_W)} 0)`);
-    }
+    scroll.setAttribute('transform', `translate(${rnd(-dist)} 0)`);
 
     // Jump arc.
     if (vy !== 0 || y > 0) {
@@ -436,11 +350,6 @@ export async function start(ctx) {
     }
 
     // Goal house slides in at the end.
-    const gx = RUNNER_X + (GOAL - dist);
-    if (gx < W + 200) {
-      goalHouse.setAttribute('opacity', 1);
-      goalHouse.setAttribute('transform', `translate(${rnd(gx - (+goalHouse.dataset.w || 520) / 2)} 0)`);
-    }
 
     const p = clamp01(dist / GOAL);
     bar.setAttribute('width', rnd(barW * p));
@@ -498,7 +407,7 @@ export async function start(ctx) {
     dist = 0; vy = 0; y = 0; hits = 0; gap = 0; stumble = 0; over = false; started = true;
     downed = false; downT = 0;
     applyExpression(runner, 'afraid'); restArms(runner);
-    goalHouse.setAttribute('opacity', 0);
+    scroll.setAttribute('transform', 'translate(0 0)');
     makeCourse();
     buildHud();
     stopLoop = ctx.loop(frame);

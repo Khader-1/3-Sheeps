@@ -8,7 +8,7 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmsylhc62';
+const CACHE = 'vmsym13sq';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
  "index.html",
@@ -70,8 +70,7 @@ const ASSETS = [
  "assets/audio/sfx/wolf-laugh.wav",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF8.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF17%D9%8818.svg",
- "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D8%B7%D9%88%D9%8A%D9%84%D9%87.svg",
- "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF14.svg",
+ "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D8%B7%D9%88%D9%8A%D9%84%D9%87%20%D8%A8%D9%8A%D8%AA.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF25%D8%AC%D8%B2%D8%A12.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D8%AE%D9%84%D9%81%D9%8A%D9%87%201.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%B4%D8%AE%D8%B5%D9%8A%D8%A7%D8%AA%20svg/%D8%B0%D9%8A%D8%A8.svg",
