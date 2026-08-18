@@ -183,6 +183,7 @@ export class GameContext {
     this._loops = new Set();
     this._timers = new Set();
     this._audio = new Set();
+    this._keys = new Set();
     this._onQuit = onQuit;
     this.dead = false;
   }
@@ -204,6 +205,20 @@ export class GameContext {
     return () => { cancelAnimationFrame(id.raf); this._loops.delete(id); };
   }
 
+  /**
+   * A keydown listener that goes away with the game.
+   *
+   * Anything bound straight to the window outlives destroy() and then keeps
+   * driving a torn-down game from under the next one — the same failure the
+   * rAF loops are tracked to avoid.
+   */
+  onKey(fn) {
+    const h = (e) => { if (!this.dead) fn(e); };
+    addEventListener('keydown', h);
+    this._keys.add(h);
+    return () => { removeEventListener('keydown', h); this._keys.delete(h); };
+  }
+
   after(ms, fn) {
     const id = setTimeout(() => { this._timers.delete(id); if (!this.dead) fn(); }, ms);
     this._timers.add(id);
@@ -215,7 +230,8 @@ export class GameContext {
     for (const l of this._loops) cancelAnimationFrame(l.raf);
     for (const t of this._timers) clearTimeout(t);
     for (const a of this._audio) { try { a.pause(); a.currentTime = 0; } catch { /* gone */ } }
-    this._loops.clear(); this._timers.clear(); this._audio.clear();
+    for (const h of this._keys) removeEventListener('keydown', h);
+    this._loops.clear(); this._timers.clear(); this._audio.clear(); this._keys.clear();
     this._offView?.();
     for (const k of Object.keys(this.layers)) {
       clear(this.layers[k]);

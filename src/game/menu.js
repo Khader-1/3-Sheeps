@@ -11,6 +11,7 @@ import { svgEl } from '../rig.js';
 import { loadCharacter, applyExpression, restArms } from '../expressions.js';
 import { houseNode } from './house-art.js';
 import { makeStage, GameContext, W, H, CREAM, INK, panel, label, scrim, view, band, fitGround, groundTop, isTall, onViewChange } from './ui.js';
+import { PREVIEWS, PREVIEW_CSS, PW, PH } from './previews.js';
 
 import * as build from './build.js';
 import * as door from './door.js';
@@ -100,24 +101,19 @@ export async function startMenu(host) {
       rig.node.setAttribute('opacity', 0.9);
     }
 
-    // The grid reflows: four across on a wide screen, three on a laptop, two
-    // on a phone held upright. Column count comes from the space actually
-    // available, so nothing ever runs off the edge or clumps in the middle.
-    const gapX = 20, gapY = 20;
-    const avail = band.w - 96;
-    const cols = avail > 1240 ? 4 : avail > 940 ? 3 : 2;
-    const rows = Math.ceil(GAMES.length / cols);
-    const cw = Math.min(300, (avail - (cols - 1) * gapX) / cols);
-
-    // On a tall screen the menu owns everything above the set; otherwise it
-    // stays inside the usual band.
+    // ---- the carousel -------------------------------------------------
+    // Seven tiles side by side told you the games existed. A card at a time,
+    // with the thing it asks you to do moving inside it, tells you what each
+    // one is — which is the only question the menu has to answer.
+    //
+    // Laid out right to left: index 0 is the rightmost card, so ← walks
+    // forward through the set the way ← walks forward through the deck.
     const sceneTop = groundTop(SCENE_ALIGN);
     const areaTop = isTall() ? view.top + 40 : band.top;
     const areaBottom = isTall() ? sceneTop - 24 : band.bottom;
     const areaH = areaBottom - areaTop;
 
-    const ch = Math.min(176, Math.max(118, (areaH - 190) / rows - gapY));
-    const titleY = areaTop + Math.min(96, areaH * 0.16);
+    const titleY = areaTop + Math.min(92, areaH * 0.15);
     // Set the way the poster sets it — cream inside a heavy dark outline — so
     // the app opens on the film's own identity rather than on a menu.
     ctx.ui(label('ألعاب الخراف الثلاثة', W / 2, titleY,
@@ -125,30 +121,134 @@ export async function startMenu(host) {
     ctx.ui(label('اختر لعبة', W / 2, titleY + 46,
       { size: 28, fill: '#ffe9a8', weight: 600, outline: true }));
 
-    const gridH = rows * ch + (rows - 1) * gapY;
-    const x0 = W / 2 - (cols * cw + (cols - 1) * gapX) / 2;
-    const y0 = Math.max(titleY + 74, (areaTop + areaBottom) / 2 - gridH / 2 + 22);
+    // One <style> for every preview's keyframes, and for the slide the cards
+    // make when the focus moves.
+    const css = svgEl('style');
+    css.textContent = PREVIEW_CSS + `
+      .card { transition: transform .42s cubic-bezier(.2,.8,.25,1), opacity .42s ease; }
+      .card.far { pointer-events: none; }`;
+    ctx.ui(css);
 
-    GAMES.forEach((mod, i) => {
+    const CARD_W = PW + 20, CARD_H = 330, STEP = CARD_W * 0.78;
+
+    // One gradient, shared by all seven feet.
+    const footId = 'pv-foot';
+    const foot = svgEl('linearGradient', { id: footId, x1: 0, y1: 0, x2: 0, y2: 1 });
+    foot.appendChild(svgEl('stop', { offset: 0, 'stop-color': '#0d0803', 'stop-opacity': 0 }));
+    foot.appendChild(svgEl('stop', { offset: 1, 'stop-color': '#0d0803', 'stop-opacity': 0.55 }));
+    const defs = svgEl('defs');
+    defs.appendChild(foot);
+    ctx.ui(defs);
+    // The rail is scaled as one, so a narrow window shrinks the whole
+    // arrangement rather than dropping the cards either side of the focus.
+    const k = Math.min(1, (band.w - 40) / (CARD_W + STEP * 2 * 0.78 + 120),
+                          (areaBottom - titleY - 118) / CARD_H);
+    const railY = Math.max(titleY + 58, (titleY + 52 + areaBottom - 44) / 2 - (CARD_H * k) / 2);
+
+    const rail = svgEl('g', { transform: `translate(${W / 2} ${railY + CARD_H * k / 2}) scale(${k})` });
+    ctx.ui(rail);
+
+    let focus = 0;
+    const cards = GAMES.map((mod, i) => {
       const m = mod.meta;
-      const x = x0 + (i % cols) * (cw + gapX);
-      const y = y0 + Math.floor(i / cols) * (ch + gapY);
+      const g = svgEl('g', { class: 'card' });
+      const x = -CARD_W / 2, y = -CARD_H / 2;
 
-      const g = svgEl('g', { cursor: 'pointer', class: 'btn' });
-      g.appendChild(panel(x, y, cw, ch, { fill: CREAM, opacity: 0.97 }));
+      g.appendChild(panel(x, y, CARD_W, CARD_H, { fill: CREAM, opacity: 0.97 }));
 
-      const emoji = svgEl('text', {
-        x: x + cw / 2, y: y + ch * 0.37, 'text-anchor': 'middle',
-        'font-size': Math.round(ch * 0.3),
+      // The preview, clipped to its own rounded corner so nothing animating
+      // inside it can escape the card. The rect is at the origin, not at the
+      // card's inset: a clip-path resolves in the user space the element's own
+      // transform establishes, so it moves with the group it clips.
+      const clipId = `pvclip-${m.id}`;
+      const clip = svgEl('clipPath', { id: clipId });
+      clip.appendChild(svgEl('rect', { x: 0, y: 0, width: PW, height: PH, rx: 14 }));
+      g.appendChild(clip);
+      const shot = svgEl('g', { 'clip-path': `url(#${clipId})`, transform: `translate(${x + 10} ${y + 10})` });
+      shot.appendChild(PREVIEWS[m.id]());
+      // A wash along the foot of the picture, so the button below has
+      // something to sit on whatever the preview happens to be drawing there.
+      shot.appendChild(svgEl('rect', { x: 0, y: PH - 88, width: PW, height: 88,
+                                       fill: `url(#${footId})` }));
+      g.appendChild(shot);
+      g.appendChild(svgEl('rect', { x: x + 10, y: y + 10, width: PW, height: PH, rx: 14,
+                                    fill: 'none', stroke: INK, 'stroke-width': 4 }));
+
+      g.appendChild(label(m.title, 0, y + PH + 58, { size: 36, weight: 800 }));
+      g.appendChild(wrap(m.blurb, 0, y + PH + 92, CARD_W - 56));
+
+      // The button sits on the preview, not under it — but in its corner. In
+      // the middle it covers the one thing the preview exists to show, which
+      // on most of these is dead centre.
+      const play = svgEl('g', { class: 'btn play', cursor: 'pointer' });
+      const px = x + 24, py = y + PH - 46;
+      play.appendChild(svgEl('rect', { x: px, y: py, width: 124, height: 44, rx: 22,
+                                       fill: '#ffd23f', stroke: INK, 'stroke-width': 5 }));
+      play.appendChild(label('العب', px + 62, py + 31, { size: 26, weight: 800 }));
+      play.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ctx.play('knock', 0.3);
+        open(mod).catch(report);
       });
-      emoji.textContent = m.emoji;
-      g.appendChild(emoji);
+      g.appendChild(play);
 
-      g.appendChild(label(m.title, x + cw / 2, y + ch * 0.62, { size: Math.round(ch * 0.19) }));
-      g.appendChild(wrap(m.blurb, x + cw / 2, y + ch * 0.79, cw - 28));
+      // Anywhere else on a card that is not the focused one brings it forward.
+      g.addEventListener('click', () => { if (i !== focus) settle(i); });
+      rail.appendChild(g);
+      return { g, play };
+    });
 
-      g.addEventListener('click', () => { ctx.play('knock', 0.3); open(mod).catch(report); });
+    // Dots, right to left like the cards.
+    const dotsY = railY + CARD_H * k + 26;
+    const dots = GAMES.map((mod, i) => {
+      const d = svgEl('circle', {
+        cx: W / 2 + (GAMES.length / 2 - 0.5 - i) * 26, cy: dotsY, r: 7,
+        fill: CREAM, stroke: INK, 'stroke-width': 3, cursor: 'pointer', class: 'btn',
+      });
+      d.addEventListener('click', () => settle(i));
+      ctx.ui(d);
+      return d;
+    });
+
+    /** Move the focus, and put every card where that leaves it. */
+    function settle(i) {
+      focus = Math.max(0, Math.min(GAMES.length - 1, i));
+      cards.forEach(({ g, play }, j) => {
+        const d = j - focus;
+        const near = Math.abs(d) <= 1;
+        const s = d === 0 ? 1 : 0.76;
+        g.setAttribute('transform', `translate(${-d * STEP} 0) scale(${s})`);
+        g.setAttribute('opacity', d === 0 ? 1 : near ? 0.55 : 0);
+        g.classList.toggle('far', !near);
+        play.setAttribute('opacity', d === 0 ? 1 : 0);
+        play.style.pointerEvents = d === 0 ? '' : 'none';
+      });
+      dots.forEach((dd, j) => dd.setAttribute('fill', j === focus ? '#ffd23f' : CREAM));
+      // The focused card last, so it draws over its neighbours.
+      rail.appendChild(cards[focus].g);
+    }
+    settle(0);
+
+    // ‹ › for a mouse, ← → for the keyboard. On an RTL rail, ← is forward.
+    const arrow = (dir, cx) => {
+      const g = svgEl('g', { class: 'btn', cursor: 'pointer' });
+      g.appendChild(svgEl('circle', { cx, cy: railY + CARD_H * k / 2, r: 30,
+                                      fill: CREAM, opacity: 0.92, stroke: INK, 'stroke-width': 5 }));
+      g.appendChild(label(dir < 0 ? '‹' : '›', cx, railY + CARD_H * k / 2 + 13, { size: 44, weight: 800 }));
+      g.addEventListener('click', () => settle(focus + dir));
       ctx.ui(g);
+    };
+    arrow(1, Math.max(band.left + 44, W / 2 - CARD_W * k / 2 - 52));
+    arrow(-1, Math.min(band.right - 44, W / 2 + CARD_W * k / 2 + 52));
+
+    ctx.onKey((e) => {
+      if (e.key === 'ArrowLeft') settle(focus + 1);
+      else if (e.key === 'ArrowRight') settle(focus - 1);
+      else if (e.key === 'Enter' || e.key === ' ') {
+        ctx.play('knock', 0.3);
+        open(GAMES[focus]).catch(report);
+      } else return;
+      e.preventDefault();
     });
 
     ctx.ui(label('كلية فلسطين التقنية – دير البلح · الوسائط المتعددة والرسوم المتحركة',
