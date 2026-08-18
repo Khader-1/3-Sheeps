@@ -141,35 +141,79 @@
      on image x 611..1340 at every aspect ratio. The cast spans 643..1334 and
      the title 667..1136 — the portrait holds the whole composition. */
   #s-poster {
-    /* Half of 70.7%, and how far the scenery takes to go. --soft is
-       independent of how much scenery there is to take, which is what keeps
-       the portrait the same shape on any screen. */
-    --edge: 35.35vh;
-    --soft: 9vh;
-    /* Opaque everywhere except the portrait, ramping across its edge. */
-    --veil: linear-gradient(to right,
-      #000        calc(50% - var(--edge) - var(--soft)),
-      transparent calc(50% - var(--edge) + var(--soft)),
-      transparent calc(50% + var(--edge) - var(--soft)),
-      #000        calc(50% + var(--edge) + var(--soft)));
+    /* The window's edges, in px from the slide's own top-left. sizeWindow()
+       sets them to the exact box an A3 <img> filled when the poster was one:
+       the height of the stage row, at the A3 proportion, centred in it. The
+       veil is cut to that, so the reveal lands on the rectangle the deck was
+       already showing rather than on a strip invented from the viewport.
+
+       The values below are the fallback if the script has not run yet — the
+       same idea measured against the viewport instead of the row. */
+    --wx0: calc(50% - 35.35vh);
+    --wx1: calc(50% + 35.35vh);
+    --wy0: 7vh;
+    --wy1: 93vh;
+    /* How far the edge takes to arrive. Wide enough not to be a cut, narrow
+       enough that the window has a definite edge rather than a haze. */
+    --soft: 1.9vh;
+    /* Sky above the artwork, field below it — the exact two colours its own
+       edges end on. */
+    --fill: linear-gradient(#8fd4f5 0 var(--wy0), #9ac349 var(--wy1) 100%);
+    /* Two bands, unioned by the default mask compositing: opaque outside the
+       column, opaque outside the row, so what is left clear is the overlap —
+       the window — with every edge ramped. */
+    --veil-x: linear-gradient(to right,
+      #000        calc(var(--wx0) - var(--soft)),
+      transparent calc(var(--wx0) + var(--soft)),
+      transparent calc(var(--wx1) - var(--soft)),
+      #000        calc(var(--wx1) + var(--soft)));
+    --veil-y: linear-gradient(to bottom,
+      #000        calc(var(--wy0) - var(--soft)),
+      transparent calc(var(--wy0) + var(--soft)),
+      transparent calc(var(--wy1) - var(--soft)),
+      #000        calc(var(--wy1) + var(--soft)));
   }
+  /* Scaled and placed so the page lands exactly on the window — never
+     `cover`, which centres the artwork and would put its middle in the
+     window instead of the poster's. The two differ: the page is centred on
+     x 901.89, the artwork on 976, and 74 units of drift is a title that
+     visibly is not in the middle of its own poster. sizeWindow() does the
+     arithmetic; the fallbacks are only for the moment before it runs. */
   .pano {
     position: absolute; inset: 0;
-    /* Height-driven rather than `cover`: on a screen wider than the artwork
-       cover would crop the title off the top, and any bare edge it leaves is
-       under the veil anyway. */
-    background: center / auto 100% no-repeat var(--art);
+    background-image: var(--art);
+    background-size: auto var(--art-h, 100%);
+    background-position: var(--art-x, center) var(--art-y, 0);
+    background-repeat: no-repeat;
   }
-  .pano.back { z-index: 0; }
+  .pano.back {
+    z-index: 0;
+    /* At the poster's scale the panorama no longer reaches the corners of the
+       screen, so the scenery is carried outward two ways. Across: repeat-x,
+       which is seamless in the only way that matters here — every copy shares
+       the horizon, and what discontinuity there is falls where the veil is at
+       full strength. Down: the artwork's own edge colours, #8fd4f5 being
+       exactly the top of its sky and #9ac349 exactly its field, so the join
+       is invisible rather than merely hidden. */
+    background-image: var(--art), var(--fill);
+    background-size: auto var(--art-h, 100%), 100% 100%;
+    background-position: var(--art-x, center) var(--art-y, 0), 0 0;
+    background-repeat: repeat-x, no-repeat;
+  }
   .pano.front { z-index: 2; }
   .haze {
     position: absolute; inset: 0; z-index: 1; opacity: 0;
-    -webkit-backdrop-filter: blur(1.7vh) saturate(.5) brightness(.32);
-    backdrop-filter: blur(1.7vh) saturate(.5) brightness(.32);
-    /* Also a plain tint, so a browser without backdrop-filter still darkens
-       rather than doing nothing at all. */
-    background: rgba(4, 8, 3, .55);
-    -webkit-mask-image: var(--veil); mask-image: var(--veil);
+    /* Frosted rather than blacked out: most of the work is the blur, and the
+       film over it is the deck's own paper at a few percent, so the scenery
+       reads as glass with something behind it instead of as a hole. */
+    -webkit-backdrop-filter: blur(2.6vh) saturate(.75) brightness(.55);
+    backdrop-filter: blur(2.6vh) saturate(.75) brightness(.55);
+    /* The tint also covers browsers without backdrop-filter, which would
+       otherwise get no veil at all. */
+    background: linear-gradient(rgba(255,246,220,.09), rgba(4,8,3,.30));
+    -webkit-mask-image: var(--veil-x), var(--veil-y);
+    mask-image: var(--veil-x), var(--veil-y);
+    mask-composite: add;
     /* Reset only after the section has finished fading out, so leaving
        mid-reveal never flashes the scenery back in on the way past. */
     transition: opacity 0s linear .6s;
@@ -396,6 +440,51 @@
   });
   const dots = [...rail.children];
   const overItems = [...overList.children];
+
+  // ---- the poster window ----------------------------------------------
+  // The veil over the panorama is cut to the box an A3 <img class="poster">
+  // filled back when the poster was one: the full height of the stage row, at
+  // the A3 proportion, centred in it — max-height:100% and max-width:100% in
+  // arithmetic. That box cannot be written in CSS, because the row's height
+  // is what is left after two clamp()ed lines of chrome, so it is measured.
+  //
+  // offset* rather than getBoundingClientRect(): a slide that is not showing
+  // carries transform: scale(1.03), and a measured rect would come back 3%
+  // large. Layout offsets ignore transforms.
+  {
+    const slide = document.getElementById('s-poster');
+    const stage = slide.querySelector('.stage');
+    const A3 = 841.68 / 1190.55;
+    // The panorama in its own units, as tools/poster-art.mjs leaves it:
+    // viewBox "33.50 0 1885.17 1031.09". PAGE_CX is where the poster's page
+    // is centred — the midpoint of the rule under the title, which on the A3
+    // export coincides with the page centre to the unit.
+    const ART = { x: 33.5, h: 1031.09, pageCx: 901.89 };
+    const PAGE_L = ART.pageCx - (ART.h * A3) / 2;
+    const sizeWindow = () => {
+      const sw = stage.offsetWidth, sh = stage.offsetHeight;
+      if (!sh) return;
+      let h = sh, w = h * A3;
+      if (w > sw) { w = sw; h = w / A3; }
+      const cx = stage.offsetLeft + sw / 2, cy = stage.offsetTop + sh / 2;
+      const x0 = cx - w / 2, y0 = cy - h / 2;
+      slide.style.setProperty('--wx0', `${x0}px`);
+      slide.style.setProperty('--wx1', `${x0 + w}px`);
+      slide.style.setProperty('--wy0', `${y0}px`);
+      slide.style.setProperty('--wy1', `${y0 + h}px`);
+      // Whatever scale puts the page's height on the window's, then slid so
+      // the page's left edge is the window's left edge.
+      const k = h / ART.h;
+      slide.style.setProperty('--art-h', `${h}px`);
+      slide.style.setProperty('--art-x', `${x0 - (PAGE_L - ART.x) * k}px`);
+      slide.style.setProperty('--art-y', `${y0}px`);
+    };
+    sizeWindow();
+    addEventListener('resize', sizeWindow);
+    // The chrome is set in a webfont; until it loads the row is the wrong
+    // height and so is the window.
+    document.fonts?.ready.then(sizeWindow);
+  }
 
   // ---- navigation -----------------------------------------------------
   function go(i) {
