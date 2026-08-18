@@ -5,8 +5,7 @@
 // layer. Without that, a loop from a finished game keeps repainting over the
 // next one — the classic way a menu-driven set of games falls apart.
 //
-// The three story games come first, in the order the film tells them, then the
-// quieter ones.
+// The order is Khader's, not the film's.
 
 import { svgEl } from '../rig.js';
 import { loadCharacter, applyExpression, restArms } from '../expressions.js';
@@ -21,7 +20,7 @@ import * as whosaid from './whosaid.js';
 import * as rebuild from './rebuild.js';
 import * as faces from './faces.js';
 
-const GAMES = [build, door, run, chimney, whosaid, rebuild, faces];
+const GAMES = [rebuild, chimney, whosaid, run, build, door, faces];
 
 export async function startMenu(host) {
   const stage = makeStage(host);

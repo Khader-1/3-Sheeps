@@ -324,6 +324,43 @@
   .slide.full .frame { border-radius: 0; box-shadow: none; }
   .slide.full .tap { border-radius: 0; }
 
+  /* ---- the count, before the games ------------------------------------
+     «لعبة صغيرة» — then the count is struck out and corrected, twice, until
+     it tells the truth. It is a joke about the scope of the thing, and it
+     buys the seven games behind it three seconds to load.
+
+     The correction is the strike itself: a rule draws across the word, the
+     word swaps under it, the rule resets. The adjective changes with it, in
+     agreement, but without being struck — it is not what is being corrected. */
+  .tally {
+    position: absolute; inset: 0; z-index: 5;
+    display: grid; place-items: center;
+    background: rgba(6, 10, 4, .93);
+    opacity: 0; visibility: hidden;
+    transition: opacity .42s ease, visibility .42s;
+  }
+  .tally.on { opacity: 1; visibility: visible; transition: opacity .28s ease; }
+  .tally p {
+    margin: 0; display: flex; gap: .32em; align-items: baseline;
+    font-family: 'Poster Display', sans-serif; font-weight: 800;
+    font-size: clamp(34px, 9vmin, 140px);
+    color: #FFF3C4; -webkit-text-stroke: .06em #22160b; paint-order: stroke fill;
+  }
+  .tally .w { position: relative; display: inline-block; }
+  /* The rule is drawn, not typed: a struck-through glyph run in the font would
+     land the line wherever the font decided, and it has to sweep. */
+  .tally .w.n::after {
+    content: ''; position: absolute; left: -.06em; right: -.06em; top: .52em;
+    height: .08em; border-radius: .04em; background: #ffd23f;
+    transform: scaleX(0); transform-origin: right center;
+  }
+  .tally .w.n.cut::after { transform: scaleX(1); transition: transform .22s ease-out; }
+  .tally .w.swap { animation: tallySwap .3s ease both; }
+  @keyframes tallySwap {
+    from { opacity: 0; transform: translateY(-.22em); }
+    to   { opacity: 1; transform: none; }
+  }
+
   /* ---- chrome -------------------------------------------------------- */
   .rail {
     position: fixed; inset: auto 0 clamp(10px, 1.6vmin, 22px) 0; z-index: 30;
@@ -444,6 +481,7 @@
   <!-- 5 ------------------------------------------------------------- -->
   <section class="slide full" id="s-games" data-title="الألعاب" data-name="الألعاب">
     <div class="head"><div class="kicker">٠٤ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
+    <div class="tally" id="tally"><p><span class="w n" id="tally-n">لعبة</span><span class="w" id="tally-a">صغيرة</span></p></div>
     <div class="stage">
       <div class="pane">
         <div class="holder" id="games-holder"></div>
@@ -453,7 +491,7 @@
         </div>
       </div>
     </div>
-    <div class="foot"><span>ابنِ بيتك · لا تفتح الباب · اهرب · المدخنة · من قال هذا؟ · أعِد البناء · كيف يشعر؟</span></div>
+    <div class="foot"><span>أعِد البناء · المدخنة · من قال هذا؟ · اهرب · ابنِ بيتك · لا تفتح الباب · كيف يشعر؟</span></div>
   </section>
 
   <!-- 6 ------------------------------------------------------------- -->
@@ -642,6 +680,8 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    // The count is a flourish, never a wait.
+    if (tally.classList.contains('on')) { countDone(); return; }
     const onBook = slides[at].id === 's-book';
     switch (e.key) {
       case 'Escape':
@@ -727,9 +767,52 @@
   // would load tens of megabytes before the title card appears, so each is
   // created the first time its section is reached and then kept.
   function onEnter(s) {
-    if (s.id === 's-games') mountGames();
+    if (s.id === 's-games') { mountGames(); countUp(); }
     if (s.id === 's-book') mountBook();
     chrome(s, true);
+  }
+
+  // ---- «لعبة صغيرة» ----------------------------------------------------
+  // The count is struck out and corrected twice before the games appear: one,
+  // then up to three, then the seven there actually are. Only the number is
+  // struck, because only the number is wrong — «صغيرة» is right for all three,
+  // Arabic taking a feminine singular adjective for a non-human plural.
+  //
+  // Each reading holds long enough to be talked over. Any key skips the whole
+  // thing, so it is a flourish and never a wait.
+  const TALLY_HOLD = 2400;   // how long each wrong count stays up
+  const TALLY_LAST = 2600;   // and the true one, before it lifts
+  const tally = document.getElementById('tally');
+  const tallyN = document.getElementById('tally-n');
+  const TALLY = ['لعبة', 'حتى ثلاث ألعاب', 'سبع ألعاب'];
+  let tallyRun = [];
+
+  function countDone() {
+    tallyRun.forEach(clearTimeout);
+    tallyRun = [];
+    tally.classList.remove('on');
+  }
+
+  tally.addEventListener('click', countDone);
+
+  function countUp() {
+    countDone();
+    tallyN.textContent = TALLY[0];
+    tallyN.classList.remove('cut');
+    tally.classList.add('on');
+    const at = (ms, fn) => tallyRun.push(setTimeout(fn, ms));
+    TALLY.slice(1).forEach((word, i) => {
+      const t = TALLY_HOLD * (i + 1);
+      at(t, () => tallyN.classList.add('cut'));
+      at(t + 300, () => {
+        tallyN.classList.remove('cut');
+        tallyN.textContent = word;
+        tallyN.classList.remove('swap');
+        void tallyN.offsetWidth;   // restart the animation
+        tallyN.classList.add('swap');
+      });
+    });
+    at(TALLY_HOLD * (TALLY.length - 1) + TALLY_LAST, countDone);
   }
 
   let gamesFrame = null;
