@@ -44,12 +44,12 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT })
 // copying out/ wholesale, which would also ship 32 MB of music experiments and
 // every TTS take.
 const DELIVERABLES = [
-  // The poster section opens full-bleed on the panorama and settles the A3
-  // page over it; the page also stands in as the blurred backdrop elsewhere.
-  // All three come from tools/poster-art.mjs.
-  'out/poster-wide.svg',
-  'out/poster-page.svg',
-  'out/poster-page.png',
+  // The poster section stacks the panorama's two halves with the curtains
+  // between them, and the whole thing blurred stands in as the backdrop on
+  // the title and closing slides. All from tools/poster-art.mjs.
+  'out/poster-wide-bg.svg',
+  'out/poster-wide-fg.svg',
+  'out/poster-wide.png',
   'out/promo.mp4',
   'out/promo-narrated.mp4',
   'out/book.html',

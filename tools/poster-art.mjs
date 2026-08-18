@@ -76,6 +76,11 @@ const JOBS = [
     src: 'assets/incoming/خلفيات/ملصق-عريض.svg',
     out: 'out/poster-wide.svg',
     reframe: true,
+    // Scenery. شمس-وغيوم is a sibling of السماء rather than a child of it, so
+    // naming only the one leaves the sun and the clouds in the foreground —
+    // where they come through sharp and lit while the sky behind them goes.
+    // What is left over is the cast with its shadows, the type and the logos.
+    split: ['السماء', 'شمس-وغيوم'],
   },
 ];
 
@@ -289,7 +294,40 @@ try {
         }
 
         out.viewBox = svg.getAttribute('viewBox');
-        out.svg = new XMLSerializer().serializeToString(svg);
+        const ser = new XMLSerializer();
+        out.svg = ser.serializeToString(svg);
+
+        if (job.split) {
+          // Two halves of one drawing, so they overlay in exact register: the
+          // scenery, and everything standing in front of it. Splitting them
+          // lets the deck dissolve the scenery toward the edges while the cast,
+          // the title and the logos stay untouched.
+          const find = (root) => [...root.querySelectorAll('g')].filter((g) => job.split.includes(g.id));
+          const KEEP = new Set(['defs', 'style', 'metadata', 'title']);
+
+          const back = svg.cloneNode(true);
+          const keepers = find(back);
+          if (!keepers.length) throw new Error(`no ${job.split} group to split on`);
+          // Ancestors are kept, pruned of their other children: a layer may
+          // carry a transform or a clip that the subtree still depends on.
+          const onPath = new Set();
+          for (const n of keepers) {
+            for (let p = n.parentNode; p && p !== back; p = p.parentNode) onPath.add(p);
+          }
+          const prune = (el) => {
+            for (const c of [...el.children]) {
+              if (keepers.includes(c)) continue;
+              if (onPath.has(c)) prune(c);
+              else if (!KEEP.has(c.tagName)) c.remove();
+            }
+          };
+          prune(back);
+          out.bgSvg = ser.serializeToString(back);
+
+          const front = svg.cloneNode(true);
+          for (const g of find(front)) g.remove();
+          out.fgSvg = ser.serializeToString(front);
+        }
 
         if (job.page) {
           // The A3 page the export still carries as a clipPath.
@@ -333,6 +371,14 @@ try {
     if (report.logos) console.log(`  logo band moved from y ${report.logos.from} down ${report.logos.dy} to the bottom`);
     console.log(`  ${(fs.statSync(dst).size / 1024).toFixed(0)} KB`);
     await preview(dst, report.viewBox);
+
+    if (report.bgSvg) {
+      for (const [suffix, text] of [['-bg', report.bgSvg], ['-fg', report.fgSvg]]) {
+        const rel = job.out.replace(/\.svg$/, `${suffix}.svg`);
+        const p = write(rel, text);
+        console.log(`  ${suffix.slice(1)}  ${rel}  ${(fs.statSync(p).size / 1024).toFixed(0)} KB`);
+      }
+    }
 
     if (report.pageSvg) {
       const pd = write(job.page, report.pageSvg);

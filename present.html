@@ -102,47 +102,85 @@
   }
   .badge.wip { background: rgba(255,210,63,.14); border-color: rgba(255,210,63,.5); color: var(--gold); }
 
-  /* ---- the poster, and the world it was cut out of --------------------
-     There are two posters, both drawn: ملصق-عريض is the panorama, the same
-     scene painted out to 1885×1031, and ملصق-ضيق carries the A3 page as a
-     clipPath, which tools/poster-art.mjs crops out as poster-page.svg.
+  /* ---- the poster closing out of its own scene ------------------------
+     One artwork throughout: ملصق-عريض, the panorama, which is the poster's
+     scene painted out to 1885×1031 with the same wolf and the same sheep.
+     The section opens on all of it and then lets the two ends fade away,
+     until what is left standing is the portrait.
 
-     So the section opens full-bleed on the panorama and holds it while the
-     presenter names it, then settles the page over it as the panorama dims —
-     the world first, the product second.
+     Not two images. The A3 export redraws the cast smaller and shifts it, so
+     dissolving the wide scene into the narrow page would make the wolf jump
+     sideways mid-reveal. Fading the sides off one drawing cannot drift,
+     because nothing moves — the portrait was always there.
 
-     Deliberately not a cross-fade between the two. They are not the same
-     drawing: the cast is redrawn smaller and shifted in the wide version, so
-     dissolving one into the other would make it jump. Laying the page on top
-     claims no registration and needs none. */
-  .pano { position: absolute; inset: 0; z-index: 0;
-    background: center/cover no-repeat var(--art); }
-  /* Cream chrome over a bright sky is unreadable, so the top and bottom bands
-     are always held down; the timed dim on top of that is what hands the eye
-     over to the poster. */
-  .pano-scrim {
-    position: absolute; inset: 0; z-index: 0;
-    background: linear-gradient(rgba(4,8,3,.58), rgba(4,8,3,.10) 24%,
-                                rgba(4,8,3,.10) 72%, rgba(4,8,3,.58));
+     tools/poster-art.mjs splits the export in two — the scenery on one side,
+     the cast, the type and the logos on the other — and the deck lays the
+     veil between them. So the veil takes only scenery, and can reach past the
+     portrait's edge and soften it without ever touching the wolf's tail or
+     the last letter of the title.
+
+       .pano.back    the whole scenery
+       .haze         backdrop-filter, masked to everything but the portrait
+       .pano.front   the cast, the type, the logos — above the veil, untouched
+
+     The scenery does not leave one way. Dissolving alone lets bright sky thin
+     out while staying bright; darkening alone leaves the hills sitting there
+     as dark shapes; blurring alone keeps every bit of their light. Taken
+     together — out of focus, drained, and dark — the sides stop being a place,
+     and the portrait is all that is left standing.
+
+     A backdrop-filter rather than stacked copies of the artwork, because a
+     mask feathers what the filter did as well as what the element paints. So
+     the blurred scenery blends into the sharp scenery across the boundary,
+     both being the same drawing in the same place, and there is no seam to
+     hide.
+
+     The geometry works out on its own. Both layers are sized to the slide's
+     height, so they stay in register, and a full-height A3-proportioned strip
+     down the middle is 841.68/1190.55 = 70.7% of the height wide, which lands
+     on image x 611..1340 at every aspect ratio. The cast spans 643..1334 and
+     the title 667..1136 — the portrait holds the whole composition. */
+  #s-poster {
+    /* Half of 70.7%, and how far the scenery takes to go. --soft is
+       independent of how much scenery there is to take, which is what keeps
+       the portrait the same shape on any screen. */
+    --edge: 35.35vh;
+    --soft: 9vh;
+    /* Opaque everywhere except the portrait, ramping across its edge. */
+    --veil: linear-gradient(to right,
+      #000        calc(50% - var(--edge) - var(--soft)),
+      transparent calc(50% - var(--edge) + var(--soft)),
+      transparent calc(50% + var(--edge) - var(--soft)),
+      #000        calc(50% + var(--edge) + var(--soft)));
   }
-  .pano-dim {
-    position: absolute; inset: 0; z-index: 0; background: rgba(4,8,3,0);
+  .pano {
+    position: absolute; inset: 0;
+    /* Height-driven rather than `cover`: on a screen wider than the artwork
+       cover would crop the title off the top, and any bare edge it leaves is
+       under the veil anyway. */
+    background: center / auto 100% no-repeat var(--art);
+  }
+  .pano.back { z-index: 0; }
+  .pano.front { z-index: 2; }
+  .haze {
+    position: absolute; inset: 0; z-index: 1; opacity: 0;
+    -webkit-backdrop-filter: blur(1.7vh) saturate(.5) brightness(.32);
+    backdrop-filter: blur(1.7vh) saturate(.5) brightness(.32);
+    /* Also a plain tint, so a browser without backdrop-filter still darkens
+       rather than doing nothing at all. */
+    background: rgba(4, 8, 3, .55);
+    -webkit-mask-image: var(--veil); mask-image: var(--veil);
     /* Reset only after the section has finished fading out, so leaving
-       mid-reveal never flashes the panorama back to full on the way past. */
-    transition: background 0s linear .6s;
+       mid-reveal never flashes the scenery back in on the way past. */
+    transition: opacity 0s linear .6s;
   }
-  .slide.on .pano-dim { background: rgba(4,8,3,.66); transition: background 1.5s ease 1.4s; }
-  /* The three layers above are absolute; everything else is grid content and
-     has to sit over them. */
-  #s-poster > div:not([class^="pano"]) { position: relative; z-index: 1; }
-  #s-poster .page {
-    opacity: 0; transform: scale(.93) translateY(3vmin);
-    transition: opacity 0s linear .6s, transform 0s linear .6s;
-  }
-  #s-poster.on .page {
-    opacity: 1; transform: none;
-    transition: opacity 1.1s ease 1.5s, transform 1.5s cubic-bezier(.2,.8,.2,1) 1.5s;
-  }
+  /* Hold the whole scene while the presenter names it, then take the ends. */
+  #s-poster.on .haze { opacity: 1; transition: opacity 2s ease 1.4s; }
+  /* Grid content sits over all three. No scrim: one would darken the poster's
+     own sky and grass along with everything else, so the chrome carries its
+     own weight instead. */
+  #s-poster > div:not(.pano) { position: relative; z-index: 3;
+    text-shadow: 0 .06em .5em rgba(4,8,3,.95), 0 0 .3em rgba(4,8,3,.8); }
 
   /* ---- media --------------------------------------------------------- */
   .stage img.poster { max-width: 100%; max-height: 100%; border-radius: 8px;
@@ -188,8 +226,11 @@
        two ran into each other there. */
     position: fixed; inset: auto auto clamp(34px,4vmin,54px) clamp(14px,2vmin,26px);
     z-index: 30; font-size: clamp(11px,1.35vmin,15px); color: var(--muted);
-    transition: opacity .6s; text-align: left; direction: ltr; line-height: 1.9;
+    transition: opacity .6s; direction: rtl; line-height: 1.9;
   }
+  /* Each item isolated: a bare <kbd>Esc</kbd> beside Arabic would otherwise be
+     reordered across the separators by the bidi algorithm. */
+  .hint span { unicode-bidi: isolate; }
   .hint.fade { opacity: 0; }
   kbd {
     font: inherit; background: rgba(255,246,220,.12); border: 1px solid rgba(255,246,220,.22);
@@ -231,7 +272,7 @@
 
   <!-- 1 ------------------------------------------------------------- -->
   <section class="slide" id="s-title" data-title="الغلاف" data-name="البداية">
-    <div class="bg-poster" style="--shot:url('out/poster-page.png')"></div>
+    <div class="bg-poster" style="--shot:url('out/poster-wide.png')"></div>
     <div class="vignette"></div>
     <div class="wrap">
       <img class="crest" src="out/heads/trio.png" alt="">
@@ -242,12 +283,12 @@
 
   <!-- 2 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
-    <div class="pano" style="--art:url('out/poster-wide.svg')"></div>
-    <div class="pano-scrim"></div>
-    <div class="pano-dim"></div>
+    <div class="pano back" style="--art:url('out/poster-wide-bg.svg')"></div>
+    <i class="haze"></i>
+    <div class="pano front" style="--art:url('out/poster-wide-fg.svg')"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
-    <div class="stage"><img class="poster page" src="out/poster-page.svg" alt="ملصق الفيلم"></div>
-    <div class="foot"><span>المشهد كاملًا، والملصق مقتطعٌ منه</span></div>
+    <div class="stage"></div>
+    <div class="foot"><span>المشهد كاملًا، ثم الملصق وحده</span></div>
   </section>
 
   <!-- 3 ------------------------------------------------------------- -->
@@ -307,7 +348,7 @@
 
   <!-- 7 ------------------------------------------------------------- -->
   <section class="slide" id="s-end" data-title="الخاتمة" data-name="شكراً">
-    <div class="bg-poster" style="--shot:url('out/poster-page.png')"></div>
+    <div class="bg-poster" style="--shot:url('out/poster-wide.png')"></div>
     <div class="vignette"></div>
     <div style="z-index:1"><div class="kicker">٠٦</div></div>
     <div class="stage" style="z-index:1">
@@ -323,7 +364,9 @@
 <div class="count" id="count">١ / ٧</div>
 <nav class="rail" id="rail"></nav>
 <div class="hint" id="hint">
-  <kbd>←</kbd><kbd>→</kbd> move &nbsp;·&nbsp; <kbd>Esc</kbd> overview &nbsp;·&nbsp; <kbd>F</kbd> fullscreen
+  <span><kbd>←</kbd><kbd>→</kbd> تنقّل</span> &nbsp;·&nbsp;
+  <span><kbd>Esc</kbd> نظرة عامة</span> &nbsp;·&nbsp;
+  <span><kbd>F</kbd> ملء الشاشة</span>
 </div>
 
 <div class="over" id="over"><ol id="overList"></ol></div>
