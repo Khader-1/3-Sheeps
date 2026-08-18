@@ -275,6 +275,9 @@ export async function start(ctx) {
     ctx.ui(button(ctx, 'مرة أخرى', W / 2 - 300, 452, 280, 82, reset, { size: 36 }));
     ctx.ui(button(ctx, 'القائمة', W / 2 + 20, 452, 280, 82, () => ctx.quit(), { size: 36 }));
     ctx.play(won ? 'impact' : 'growl', 0.5);
+    // The house held, so he blew himself out; the house fell, so he is
+    // pleased with himself.
+    ctx.after(360, () => ctx.play(won ? 'wolf-cry' : 'wolf-laugh', 0.75));
   }
 
   function reset() {

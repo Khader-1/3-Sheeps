@@ -164,6 +164,7 @@ export async function start(ctx) {
     ctx.ui(button(ctx, 'مرة أخرى', W / 2 - 300, 450, 280, 82, () => { makeQueue(); round = 0; score = 0; ask(); }, { size: 36 }));
     ctx.ui(button(ctx, 'القائمة', W / 2 + 20, 450, 280, 82, () => ctx.quit(), { size: 36 }));
     ctx.play(perfect ? 'impact' : 'growl', 0.5);
+    ctx.after(320, () => ctx.play(perfect ? 'wolf-cry' : 'wolf-laugh', 0.7));
   }
 
   intro();

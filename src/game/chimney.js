@@ -328,6 +328,7 @@ export async function start(ctx) {
     // toward the hearth, and sways exactly with it.
     burnPart(wolf, ctx.svg, 'الذيل', { scale: 1.5, attach: true, dir: 'down' });
     ctx.play('growl', 0.65);
+    ctx.after(420, () => ctx.play('wolf-cry', 0.8));
 
     let t = 0;
     const from = pos;
@@ -380,6 +381,7 @@ export async function start(ctx) {
   function arrived() {
     running = false;
     ctx.play('growl', 0.85);
+    ctx.after(300, () => ctx.play('wolf-laugh', 0.85));
     applyExpression(wolf, 'menacing');
     openJaw(wolf, { angle: 32 });
 

@@ -130,7 +130,10 @@ export const RED = '#c0392b';
 export const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 export const rnd = (n) => Math.round(n * 100) / 100;
 
-const SFX_NAMES = ['knock', 'growl', 'whoosh', 'impact', 'step-grass', 'chirp', 'breath'];
+const SFX_NAMES = ['knock', 'growl', 'whoosh', 'impact', 'step-grass', 'chirp', 'breath',
+  // The wolf's two outcomes, recorded rather than synthesised: he laughs
+  // when he wins and cries when he does not.
+  'wolf-laugh', 'wolf-cry'];
 
 /** Build the stage once; the menu reuses it for every game. */
 export function makeStage(host) {

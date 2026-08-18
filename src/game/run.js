@@ -463,6 +463,7 @@ export async function start(ctx) {
   function lose() {
     over = true; stopLoop?.();
     ctx.play('growl', 0.6);
+    ctx.after(260, () => ctx.play('wolf-laugh', 0.75));
     end('أمسكَ بك الذئب!', 'كل عثرة تُبطئك… والذئب لا يتعثر.', false);
   }
 
@@ -470,12 +471,15 @@ export async function start(ctx) {
   function caught() {
     over = true; stopLoop?.();
     ctx.play('growl', 0.7);
+    ctx.after(260, () => ctx.play('wolf-laugh', 0.8));
     end('أمسكَ بك الذئب!', 'ثلاثُ عثرات… ولم تستطع النهوض.', false);
   }
 
   function win() {
     over = true; stopLoop?.();
     ctx.play('impact', 0.55);
+    // He was one stride away and lost him.
+    ctx.after(340, () => ctx.play('wolf-cry', 0.7));
     applyExpression(runner, 'determined');
     restArms(runner);
     end('وصلت!', 'بيتُ أخيك أنقذك… هذه المرة.', true);
