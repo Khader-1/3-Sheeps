@@ -120,8 +120,9 @@
      the last letter of the title.
 
        .pano.back    the whole scenery
+       .pano.cast    the cast, the type, the logos — all of them, fading out
        .haze         backdrop-filter, masked to everything but the portrait
-       .pano.front   the cast, the type, the logos — above the veil, untouched
+       .pano.front   the same, cropped to the page, over the veil and staying
 
      The scenery does not leave one way. Dissolving alone lets bright sky thin
      out while staying bright; darkening alone leaves the hills sitting there
@@ -135,11 +136,8 @@
      both being the same drawing in the same place, and there is no seam to
      hide.
 
-     The geometry works out on its own. Both layers are sized to the slide's
-     height, so they stay in register, and a full-height A3-proportioned strip
-     down the middle is 841.68/1190.55 = 70.7% of the height wide, which lands
-     on image x 611..1340 at every aspect ratio. The cast spans 643..1334 and
-     the title 667..1136 — the portrait holds the whole composition. */
+     Every layer is placed by the same arithmetic, in sizeWindow(), so they
+     stay in register whatever the screen. */
   #s-poster {
     /* The window's edges, in px from the slide's own top-left. sizeWindow()
        sets them to the exact box an A3 <img> filled when the poster was one:
@@ -172,6 +170,18 @@
       transparent calc(var(--wy0) + var(--soft)),
       transparent calc(var(--wy1) - var(--soft)),
       #000        calc(var(--wy1) + var(--soft)));
+    /* The same two bands the other way up, for the copy of the cast that is
+       kept rather than the scenery that is dropped. */
+    --win-x: linear-gradient(to right,
+      transparent calc(var(--wx0) - var(--soft)),
+      #000        calc(var(--wx0) + var(--soft)),
+      #000        calc(var(--wx1) - var(--soft)),
+      transparent calc(var(--wx1) + var(--soft)));
+    --win-y: linear-gradient(to bottom,
+      transparent calc(var(--wy0) - var(--soft)),
+      #000        calc(var(--wy0) + var(--soft)),
+      #000        calc(var(--wy1) - var(--soft)),
+      transparent calc(var(--wy1) + var(--soft)));
   }
   /* Scaled and placed so the page lands exactly on the window — never
      `cover`, which centres the artwork and would put its middle in the
@@ -200,7 +210,32 @@
     background-position: var(--art-x, center) var(--art-y, 0), 0 0;
     background-repeat: repeat-x, no-repeat;
   }
-  .pano.front { z-index: 2; }
+  /* The cast twice. On the printed page the wolf's tail runs off the edge and
+     the page clip takes it; here the page has no clip, so the crop is done
+     with the two copies instead.
+
+       .cast    all of it, under the veil, fading out
+       .front   the part inside the page, over the veil, never fading
+
+     Inside the window the two are the same drawing in the same place, so the
+     sum stays exactly one copy however far .cast has faded and the poster
+     never flickers. Outside, .cast is the only one there, so the tail goes —
+     and it goes hazed, having been under the veil the whole time, rather than
+     as a sharp thing dissolving over a blurred one. */
+  .pano.cast {
+    z-index: 1;
+    /* Reset only after the section has finished fading out. */
+    transition: opacity 0s linear .6s;
+  }
+  .pano.front {
+    z-index: 3;
+    -webkit-mask-image: var(--win-x), var(--win-y);
+    mask-image: var(--win-x), var(--win-y);
+    /* Both bands must agree for a pixel to be kept, or the corners leak. */
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+  #s-poster.on .pano.cast { opacity: 0; transition: opacity 2s ease 1.4s; }
   .haze {
     position: absolute; inset: 0; z-index: 1; opacity: 0;
     /* Frosted rather than blacked out: most of the work is the blur, and the
@@ -223,7 +258,7 @@
   /* Grid content sits over all three. No scrim: one would darken the poster's
      own sky and grass along with everything else, so the chrome carries its
      own weight instead. */
-  #s-poster > div:not(.pano) { position: relative; z-index: 3;
+  #s-poster > div:not(.pano) { position: relative; z-index: 4;
     text-shadow: 0 .06em .5em rgba(4,8,3,.95), 0 0 .3em rgba(4,8,3,.8); }
 
   /* ---- media --------------------------------------------------------- */
@@ -328,6 +363,7 @@
   <!-- 2 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
     <div class="pano back" style="--art:url('out/poster-wide-bg.svg')"></div>
+    <div class="pano cast" style="--art:url('out/poster-wide-fg.svg')"></div>
     <i class="haze"></i>
     <div class="pano front" style="--art:url('out/poster-wide-fg.svg')"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
@@ -458,12 +494,13 @@
     // The panorama in its own units, as tools/poster-art.mjs leaves it:
     // viewBox "33.50 0 1885.17 1031.09".
     const ART = { x: 33.5, h: 1031.09 };
-    // And where the A3 page sits inside it. The wide export is the narrow one
-    // at 0.81986 shifted by (361.0, 75.23) — every baseline in both files
-    // agrees on that to a hundredth — so the narrow file's page, x 238.91
-    // width 841.68 by the full 1190.55, maps to this. Its centre comes out at
-    // 901.89, which is the midpoint of the rule under the title, so the type
-    // is centred in it exactly as it is on the printed page.
+    // And where the A3 page sits inside it — the numbers tools/poster-art.mjs
+    // prints as "the A3 page lands at". The wide export is the narrow one at
+    // 0.81986 shifted by (361.0, 75.23), every baseline in both files agreeing
+    // to a hundredth, so the narrow file's page — x 238.91 width 841.68 by the
+    // full 1190.55 — maps to this. Its centre comes out at 901.89, which is
+    // the midpoint of the rule under the title, so the type is centred in it
+    // exactly as it is on the printed page.
     //
     // Not the artwork's full height, which is what this used to use: that is
     // the page plus 5.6%, and it left the poster sitting a size small inside

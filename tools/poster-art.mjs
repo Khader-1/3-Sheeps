@@ -29,7 +29,7 @@
 //
 //   poster-narrow   the A3 poster as exported, page clip and margins intact
 //   poster-page     that page alone, cropped to the clip — the print deliverable
-//   poster-wide     the panorama, reframed (see REFRAME below)
+//   poster-wide     the panorama, reframed and re-placed (see below)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -56,12 +56,11 @@ const COPY = {
 //               the field takes the three stray edges out and leaves the top
 //               one where it belongs, on the horizon. Nothing is repainted.
 //
-//   the logos   the band sits mid-field, over the sheep's feet. On the A3 page
-//               it sits at the bottom, 41.5 units up from the edge; the same
-//               inset is applied here.
+// The logo band and the cast are misplaced too, but not by the canvas — see
+// the placement step, which maps them from the A3 export rather than guessing.
 //
-// Both are reversible: drop the flag and the export comes through untouched.
-const REFRAME = { logoInset: 41.5 / 1190.55 };
+// All of it is reversible: drop the flag and the export comes through
+// untouched.
 
 const JOBS = [
   {
@@ -76,6 +75,12 @@ const JOBS = [
     src: 'assets/incoming/خلفيات/ملصق-عريض.svg',
     out: 'out/poster-wide.svg',
     reframe: true,
+    // Both of these came out of Illustrator misplaced; see the placement step.
+    place: [
+      { id: 'الشعارات', fit: 'stretch' },
+      { id: 'الشخصيات', fit: 'characters',
+        by: ['الذئب', 'الخروف-الأكبر', 'الخروف-الأوسط', 'الخروف-الأصغر'] },
+    ],
     // Scenery. شمس-وغيوم is a sibling of السماء rather than a child of it, so
     // naming only the one leaves the sun and the clouds in the foreground —
     // where they come through sharp and lit while the sky behind them goes.
@@ -133,7 +138,53 @@ async function preview(file, viewBox, width = 1400) {
   fs.rmSync(wrap);
 }
 
+/** Measure out/poster.svg — the canonical A3 poster, whose viewBox is the page
+ *  itself, so every box read from it is already in page units. It is the
+ *  reference for how big the cast stands against the page, and for where the
+ *  logo band sits. */
+async function measureA3() {
+  const file = path.join(ROOT, 'out/poster.svg');
+  if (!fs.existsSync(file)) {
+    console.warn('  out/poster.svg is missing — the cast and logos stay as exported');
+    return null;
+  }
+  const p = await browser.newPage();
+  await p.goto('file://' + file, { waitUntil: 'load' });
+  const r = await p.evaluate((ids) => {
+    const svg = document.documentElement;
+    const boxIn = (el) => {
+      const b = el.getBBox();
+      const m = svg.getScreenCTM().inverse().multiply(el.getScreenCTM());
+      const xs = [], ys = [];
+      for (const [x, y] of [[b.x, b.y], [b.x + b.width, b.y],
+                            [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]]) {
+        const pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
+        const q = pt.matrixTransform(m); xs.push(q.x); ys.push(q.y);
+      }
+      return { x: Math.min(...xs), y: Math.min(...ys),
+               w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    };
+    const [, , w, h] = svg.getAttribute('viewBox').split(/[\s,]+/).map(Number);
+    const boxes = {};
+    for (const g of svg.querySelectorAll('g')) {
+      if (ids.includes(g.id) && !boxes[g.id]) boxes[g.id] = boxIn(g);
+    }
+    return { page: { w, h }, boxes };
+  }, ['الشخصيات', 'الشعارات', 'الذئب', 'الخروف-الأكبر', 'الخروف-الأوسط', 'الخروف-الأصغر']);
+  await p.close();
+  return r;
+}
+
 try {
+  const a3 = await measureA3();
+  if (a3) {
+    console.log(`reference  out/poster.svg  page ${a3.page.w}×${a3.page.h}, ` +
+                `${Object.keys(a3.boxes).length} groups measured\n`);
+  }
+  // The narrow export is measured next: it is what pins the page onto the
+  // wide canvas.
+  let ref = null;
+
   for (const job of JOBS) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1400, height: 1000 });
@@ -142,7 +193,7 @@ try {
     await page.goto('file://' + path.join(ROOT, job.src), { waitUntil: 'load' });
 
     const report = await page.evaluate(
-      async (fontCss, COPY, REF, job, REFRAME) => {
+      async (fontCss, COPY, REF, job, ref, a3) => {
         const NS = 'http://www.w3.org/2000/svg';
         const svg = document.documentElement;
 
@@ -254,7 +305,28 @@ try {
         // appending put the new text after it.
         type.insertBefore(rule, type.children[4]);
 
-        const out = { cx, ruleW, k, lines: set };
+        // Recorded on every job, because the A3 export is the reference the
+        // wide one is placed against. cx and the first baseline pin the affine
+        // between the two files; the boxes are what gets mapped through it.
+        const out = { cx, ruleW, k, lines: set,
+                      titleSize: lines[0].size, titleY: lines[0].y, boxes: {} };
+        for (const id of ['الشخصيات', 'الشعارات']) {
+          const g = byId(id);
+          if (g) out.boxes[id] = boxIn(g);
+        }
+
+        // The A3 page, which the narrow export still carries as a clipPath:
+        //   <clipPath transform="translate(238.81 0)"><rect x="0.1" …>
+        const clip = svg.querySelector('clipPath rect');
+        if (clip) {
+          const t = /translate\(\s*([-\d.]+)/.exec(clip.parentNode.getAttribute('transform') || '');
+          out.page = {
+            x: (t ? +t[1] : 0) + (+clip.getAttribute('x') || 0),
+            y: +clip.getAttribute('y') || 0,
+            w: +clip.getAttribute('width'),
+            h: +clip.getAttribute('height'),
+          };
+        }
 
         if (job.reframe) {
           // The field, found as the one big black-stroked path rather than by
@@ -281,15 +353,80 @@ try {
           // which is what keeps the last letter of «الثلاثة» clear of the sun.
           // Centring it, as the A3 page does, walks the title into the sun, so
           // the offset stays.
-          const logos = byId('الشعارات');
-          if (logos) {
-            const lb = boxIn(logos);
-            const dy = (vb.y + vb.h) * (1 - REFRAME.logoInset) - (lb.y + lb.h);
+        }
+
+        // Put the cast and the logos where out/poster.svg has them.
+        //
+        // Two mappings compose. The A3 page lands on this canvas by the affine
+        // between the two Illustrator exports, which is readable at both ends:
+        // the scale is the ratio of their title sizes, which Illustrator kept,
+        // and the offset falls out of the rule's centre and the first
+        // baseline. Every baseline in the two files agrees with the result to
+        // a hundredth. Then out/poster.svg is that page — its viewBox is the
+        // page — so anything measured in it maps straight through.
+        //
+        // Two groups arrived wrong. The logo band is squeezed across: its
+        // height carries the same 0.82 the rest of the export does, its width
+        // carries 0.82 twice, so the round university seal turns up at 0.79 —
+        // and it sits on the artwork's centre rather than the page's. And the
+        // cast is drawn smaller and higher than it belongs.
+        if (ref && a3 && job.place) {
+          const s = lines[0].size / ref.titleSize;
+          const tx = cx - ref.cx * s;
+          const ty = lines[0].y - ref.titleY * s;
+          const page = { x: ref.page.x * s + tx, y: ref.page.y * s + ty,
+                         w: ref.page.w * s, h: ref.page.h * s };
+          // out/poster.svg's units into this canvas's.
+          const q = page.w / a3.page.w;
+          const mapped = (bb) => ({ x: page.x + bb.x * q, y: page.y + bb.y * q,
+                                    w: bb.w * q, h: bb.h * q });
+          out.pageHere = page;
+          out.placed = [];
+
+          for (const { id, fit, by } of job.place) {
+            const g = byId(id), rb = a3.boxes[id];
+            if (!g || !rb) continue;
+            const t = mapped(rb);
+            const b = boxIn(g);
+
+            let sx, sy, nx, ny, note = '';
+            if (fit === 'stretch') {
+              // The band: both axes, because the squeeze is a defect and
+              // undoing it is what makes the seal round again.
+              sx = t.w / b.w; sy = t.h / b.h;
+              nx = t.x; ny = t.y;
+            } else {
+              // The cast: one scale, and not from the group's own box. The two
+              // drawings space the cast differently — tighter here — so the
+              // group is narrower than the reference by much more than the
+              // characters in it are smaller. Comparing the characters
+              // themselves settles it: each one's height against the page,
+              // there over here, and the median of those. They agree closely
+              // (1.24, 1.18, 1.17, 1.17), which is what says the difference
+              // really is one uniform scale and not a different arrangement.
+              const each = by.map((cid) => {
+                const cg = byId(cid), cb = a3.boxes[cid];
+                return cg && cb ? (cb.h * q) / boxIn(cg).h : null;
+              }).filter(Boolean).sort((m, n) => m - n);
+              if (!each.length) continue;
+              const mid = each.length >> 1;
+              sx = sy = each.length % 2 ? each[mid] : (each[mid - 1] + each[mid]) / 2;
+              note = each.map((v) => v.toFixed(3)).join(' ');
+              // Then stood on the reference's own feet, centred where the
+              // reference centres it.
+              nx = (t.x + t.w / 2) - (b.w * sx) / 2;
+              ny = (t.y + t.h) - b.h * sy;
+            }
+
             const wrap = document.createElementNS(NS, 'g');
-            wrap.setAttribute('transform', `translate(0 ${dy.toFixed(2)})`);
-            logos.parentNode.insertBefore(wrap, logos);
-            wrap.appendChild(logos);
-            out.logos = { from: +lb.y.toFixed(1), dy: +dy.toFixed(1) };
+            wrap.setAttribute('transform',
+              `translate(${(nx - b.x * sx).toFixed(2)} ${(ny - b.y * sy).toFixed(2)}) ` +
+              `scale(${sx.toFixed(5)} ${sy.toFixed(5)})`);
+            g.parentNode.insertBefore(wrap, g);
+            wrap.appendChild(g);
+            out.placed.push({ id, fit, note, sx: +sx.toFixed(3), sy: +sy.toFixed(3),
+                              was: `${b.x.toFixed(0)},${b.y.toFixed(0)} ${b.w.toFixed(0)}×${b.h.toFixed(0)}`,
+                              now: `${nx.toFixed(0)},${ny.toFixed(0)} ${(b.w * sx).toFixed(0)}×${(b.h * sy).toFixed(0)}` });
           }
         }
 
@@ -331,16 +468,8 @@ try {
 
         if (job.page) {
           // The A3 page the export still carries as a clipPath.
-          // <clipPath transform="translate(238.81 0)"><rect x="0.1" …>
-          const clip = svg.querySelector('clipPath rect');
-          if (!clip) throw new Error('no page clip to crop to');
-          const t = /translate\(\s*([-\d.]+)/.exec(clip.parentNode.getAttribute('transform') || '');
-          const box = {
-            x: (t ? +t[1] : 0) + (+clip.getAttribute('x') || 0),
-            y: +clip.getAttribute('y') || 0,
-            w: +clip.getAttribute('width'),
-            h: +clip.getAttribute('height'),
-          };
+          const box = out.page;
+          if (!box) throw new Error('no page clip to crop to');
           svg.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`);
           svg.setAttribute('width', '297mm');
           svg.setAttribute('height', '420mm');
@@ -350,8 +479,11 @@ try {
 
         return out;
       },
-      fontCss, COPY, REF, job, REFRAME
+      fontCss, COPY, REF, job, ref, a3
     );
+
+    if (!ref) ref = { cx: report.cx, titleSize: report.titleSize,
+                      titleY: report.titleY, boxes: report.boxes, page: report.page };
 
     const write = (rel, text) => {
       const dst = path.join(ROOT, rel);
@@ -368,7 +500,15 @@ try {
       console.log(`  y ${String(l.y).padStart(7)}  ${String(l.size).padStart(6)}px  ${String(l.w).padStart(6)} / ${l.max}${fit}   ${l.txt}`);
     }
     if (report.reframe) console.log(`  reframed to the field, dropping its three stray edges`);
-    if (report.logos) console.log(`  logo band moved from y ${report.logos.from} down ${report.logos.dy} to the bottom`);
+    if (report.pageHere) {
+      const g = report.pageHere;
+      console.log(`  the A3 page lands at ${g.x.toFixed(2)} ${g.y.toFixed(2)} ${g.w.toFixed(2)} × ${g.h.toFixed(2)}`);
+    }
+    for (const p of report.placed || []) {
+      const by = p.sy === p.sx ? `${p.sx}x` : `${p.sx}x across by ${p.sy}x down`;
+      console.log(`  ${p.id} placed from out/poster.svg  (${p.fit}, ${by})`);
+      console.log(`      ${p.was}  ->  ${p.now}${p.note ? `   from ${p.note}` : ''}`);
+    }
     console.log(`  ${(fs.statSync(dst).size / 1024).toFixed(0)} KB`);
     await preview(dst, report.viewBox);
 
