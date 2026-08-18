@@ -5,7 +5,7 @@
 // parts from «ابنِ بيتك», which are already separate, snappable objects.
 
 import { svgEl } from '../rig.js';
-import { MATERIALS, PARTS, GEO, buildPart, ghostPart, loadHouse } from './house.js';
+import { MATERIALS, PARTS, GEO, buildPart, ghostPart, loadHouse } from './house-art.js';
 import { W, H, CREAM, clamp01, rnd, panel, label, button, scrim, backChip, banner, view, coverView, onViewChange, band, fitGround } from './ui.js';
 
 export const meta = {
