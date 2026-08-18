@@ -119,8 +119,12 @@ export async function startMenu(host) {
 
     const ch = Math.min(176, Math.max(118, (areaH - 190) / rows - gapY));
     const titleY = areaTop + Math.min(96, areaH * 0.16);
-    ctx.ui(label('ألعاب الخراف الثلاثة', W / 2, titleY, { size: 62, fill: CREAM, weight: 800 }));
-    ctx.ui(label('اختر لعبة', W / 2, titleY + 46, { size: 28, fill: '#ffe9a8', weight: 600 }));
+    // Set the way the poster sets it — cream inside a heavy dark outline — so
+    // the app opens on the film's own identity rather than on a menu.
+    ctx.ui(label('ألعاب الخراف الثلاثة', W / 2, titleY,
+      { size: 62, fill: '#FFF3C4', weight: 800, outline: true }));
+    ctx.ui(label('اختر لعبة', W / 2, titleY + 46,
+      { size: 28, fill: '#ffe9a8', weight: 600, outline: true }));
 
     const gridH = rows * ch + (rows - 1) * gapY;
     const x0 = W / 2 - (cols * cw + (cols - 1) * gapX) / 2;
@@ -149,7 +153,8 @@ export async function startMenu(host) {
     });
 
     ctx.ui(label('كلية فلسطين التقنية – دير البلح · الوسائط المتعددة والرسوم المتحركة',
-      W / 2, (isTall() ? view.bottom - 26 : band.bottom - 16), { size: 20, fill: '#ffffff', weight: 600 }));
+      W / 2, (isTall() ? view.bottom - 26 : band.bottom - 16),
+      { size: 20, fill: '#ffffff', weight: 600, outline: true }));
   }
 
   /** Two-line blurb; SVG text does not wrap, so it is split by width estimate. */

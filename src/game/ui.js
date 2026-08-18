@@ -318,7 +318,8 @@ export function panel(x, y, w, h, { fill = CREAM, opacity = 0.96, rx = 22 } = {}
   return svgEl('rect', { x, y, width: w, height: h, rx, fill, opacity, stroke: INK, 'stroke-width': 5 });
 }
 
-export function label(text, x, y, { size = 34, fill = INK, weight = 700, anchor = 'middle' } = {}) {
+export function label(text, x, y,
+                      { size = 34, fill = INK, weight = 700, anchor = 'middle', outline = false } = {}) {
   const t = svgEl('text', {
     x, y, 'text-anchor': anchor, fill, 'font-size': size,
     // Baloo Bhaijaan 2 — rounder and heavier than Cairo, and the games want
@@ -327,6 +328,18 @@ export function label(text, x, y, { size = 34, fill = INK, weight = 700, anchor 
     'font-family': "'Poster Display', sans-serif", 'font-weight': weight,
     direction: 'rtl', 'unicode-bidi': 'isolate',
   });
+  // The poster's own treatment: a cream fill inside a heavy dark outline, at
+  // its ratio of 18 units of stroke on a 104px title. paint-order puts the
+  // stroke behind the fill, so the letterforms keep their full weight instead
+  // of a centred stroke eating into them from both sides. Anything set over
+  // the scene rather than on a panel wants it — it is what makes the type
+  // read at a glance against grass and sky.
+  if (outline) {
+    t.setAttribute('stroke', outline === true ? '#22160b' : outline);
+    t.setAttribute('stroke-width', (size * (18 / 104)).toFixed(2));
+    t.setAttribute('stroke-linejoin', 'round');
+    t.setAttribute('paint-order', 'stroke');
+  }
   t.textContent = text;
   return t;
 }

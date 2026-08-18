@@ -405,22 +405,10 @@
     </div>
   </section>
 
-  <!-- 2 ------------------------------------------------------------- -->
-  <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
-    <div class="pano scenery" style="--art:url('out/poster-wide-bg.svg')"></div>
-    <div class="pano cast" style="--art:url('out/poster-wide-fg.svg')"></div>
-    <i class="haze"></i>
-    <i class="glow"></i>
-    <div class="pano scenery win" style="--art:url('out/poster-wide-bg.svg')"></div>
-    <div class="pano win" style="--art:url('out/poster-wide-fg.svg')"></div>
-    <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
-    <div class="stage"></div>
-    <div class="foot"><span>المشهد كاملًا، ثم الملصق وحده</span></div>
-  </section>
 
-  <!-- 3 ------------------------------------------------------------- -->
+  <!-- 2 ------------------------------------------------------------- -->
   <section class="slide full" id="s-promo" data-title="الإعلان" data-name="الإعلان">
-    <div class="head"><div class="kicker">٠٢ — الإعلان التشويقي</div><h2>الإعلان</h2></div>
+    <div class="head"><div class="kicker">٠١ — الإعلان التشويقي</div><h2>الإعلان</h2></div>
     <div class="stage">
       <video id="v-promo" src="out/promo.mp4" preload="metadata" playsinline controls></video>
       <div class="tap" data-for="v-promo"><span>▶</span></div>
@@ -428,10 +416,10 @@
     <div class="foot"><span>٢٧ ثانية · موسيقى ومؤثرات</span></div>
   </section>
 
-  <!-- 4 ------------------------------------------------------------- -->
+  <!-- 3 ------------------------------------------------------------- -->
   <section class="slide full" id="s-film" data-title="الفيلم" data-name="الفيلم">
     <div class="head">
-      <div class="kicker">٠٣ — الفيلم</div>
+      <div class="kicker">٠٢ — الفيلم</div>
       <h2>الفيلم <span class="badge wip">قيد الإنتاج</span></h2>
     </div>
     <div class="stage">
@@ -439,6 +427,18 @@
       <div class="tap" data-for="v-film"><span>▶</span></div>
     </div>
     <div class="foot"><span>تُعرض النسخة المعلَّق عليها من الإعلان ريثما يكتمل الفيلم</span></div>
+  </section>
+  <!-- 4 ------------------------------------------------------------- -->
+  <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
+    <div class="pano scenery" style="--art:url('out/poster-wide-bg.svg')"></div>
+    <div class="pano cast" style="--art:url('out/poster-wide-fg.svg')"></div>
+    <i class="haze"></i>
+    <i class="glow"></i>
+    <div class="pano scenery win" style="--art:url('out/poster-wide-bg.svg')"></div>
+    <div class="pano win" style="--art:url('out/poster-wide-fg.svg')"></div>
+    <div><div class="kicker">٠٣ — الهوية البصرية</div><h2>الملصق</h2></div>
+    <div class="stage"></div>
+    <div class="foot"><span>المشهد كاملًا، ثم الملصق وحده</span></div>
   </section>
 
   <!-- 5 ------------------------------------------------------------- -->
@@ -737,12 +737,14 @@
     if (gamesFrame) return;
     gamesFrame = document.createElement('iframe');
     gamesFrame.className = 'frame';
-    // embed=1 keeps the install card from appearing inside the deck.
-    gamesFrame.src = './?embed=1';
+    // embed=1 keeps the install card from appearing inside the deck. Named in
+    // full rather than './': a directory URL only resolves to index.html when
+    // a server says so, and the deck is also opened straight off the disk.
+    gamesFrame.src = './index.html?embed=1';
     gamesFrame.allow = 'autoplay; fullscreen';
     document.getElementById('games-holder').appendChild(gamesFrame);
   }
-  document.getElementById('games-open').addEventListener('click', () => window.open('./', '_blank'));
+  document.getElementById('games-open').addEventListener('click', () => window.open('./index.html', '_blank'));
 
   let bookFrame = null, bookPages = [], bookAt = 0;
   const bookCount = document.getElementById('book-count');
