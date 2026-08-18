@@ -158,7 +158,7 @@
     --soft: 1.9vh;
     /* Sky above the artwork, field below it — the exact two colours its own
        edges end on. */
-    --fill: linear-gradient(#8fd4f5 0 var(--wy0), #9ac349 var(--wy1) 100%);
+    --fill: linear-gradient(#8fd4f5 0 var(--art-y, 0px), #9ac349 var(--art-b, 100%) 100%);
     /* Two bands, unioned by the default mask compositing: opaque outside the
        column, opaque outside the row, so what is left clear is the overlap —
        the window — with every edge ramped. */
@@ -456,11 +456,19 @@
     const stage = slide.querySelector('.stage');
     const A3 = 841.68 / 1190.55;
     // The panorama in its own units, as tools/poster-art.mjs leaves it:
-    // viewBox "33.50 0 1885.17 1031.09". PAGE_CX is where the poster's page
-    // is centred — the midpoint of the rule under the title, which on the A3
-    // export coincides with the page centre to the unit.
-    const ART = { x: 33.5, h: 1031.09, pageCx: 901.89 };
-    const PAGE_L = ART.pageCx - (ART.h * A3) / 2;
+    // viewBox "33.50 0 1885.17 1031.09".
+    const ART = { x: 33.5, h: 1031.09 };
+    // And where the A3 page sits inside it. The wide export is the narrow one
+    // at 0.81986 shifted by (361.0, 75.23) — every baseline in both files
+    // agrees on that to a hundredth — so the narrow file's page, x 238.91
+    // width 841.68 by the full 1190.55, maps to this. Its centre comes out at
+    // 901.89, which is the midpoint of the rule under the title, so the type
+    // is centred in it exactly as it is on the printed page.
+    //
+    // Not the artwork's full height, which is what this used to use: that is
+    // the page plus 5.6%, and it left the poster sitting a size small inside
+    // a rim of extra scene.
+    const PAGE = { x: 556.86, y: 75.23, w: 690.06, h: 976.09 };
     const sizeWindow = () => {
       const sw = stage.offsetWidth, sh = stage.offsetHeight;
       if (!sh) return;
@@ -473,11 +481,17 @@
       slide.style.setProperty('--wy0', `${y0}px`);
       slide.style.setProperty('--wy1', `${y0 + h}px`);
       // Whatever scale puts the page's height on the window's, then slid so
-      // the page's left edge is the window's left edge.
-      const k = h / ART.h;
-      slide.style.setProperty('--art-h', `${h}px`);
-      slide.style.setProperty('--art-x', `${x0 - (PAGE_L - ART.x) * k}px`);
-      slide.style.setProperty('--art-y', `${y0}px`);
+      // the page's top-left corner is the window's.
+      const k = h / PAGE.h;
+      const ay = y0 - PAGE.y * k;
+      slide.style.setProperty('--art-h', `${ART.h * k}px`);
+      slide.style.setProperty('--art-x', `${x0 - (PAGE.x - ART.x) * k}px`);
+      slide.style.setProperty('--art-y', `${ay}px`);
+      // The page runs 20 units past the bottom of the artwork, so the last
+      // sliver of it is field colour rather than field. The fill takes over
+      // at the artwork's own edges, not the window's, so the join is between
+      // flat green and flat green.
+      slide.style.setProperty('--art-b', `${ay + ART.h * k}px`);
     };
     sizeWindow();
     addEventListener('resize', sizeWindow);
