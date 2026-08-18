@@ -26,6 +26,9 @@ const EXCLUDE = [
   /\/موهو\//,           // Moho project files, both the scene and character sets
   /^assets\/script\.docx$/,
   /^assets\/svg\//,      // empty staging directory
+  // The poster exports. Only tools/poster-art.mjs reads them, and at ~1.9 MB
+  // they would be the largest thing on the site that nothing ever requests.
+  /^assets\/incoming\/خلفيات\/ملصق-/,
   /^tools\//,            // the pipeline itself is not served
   /^README\.md$/,
   /^\.nojekyll$/,        // a GitHub Pages concern; Cloudflare has no Jekyll
@@ -41,10 +44,12 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT })
 // copying out/ wholesale, which would also ship 32 MB of music experiments and
 // every TTS take.
 const DELIVERABLES = [
-  'out/poster.png',
-  // The poster section opens on the artwork with its page crop released, then
-  // fades the cropped wings away.
-  'out/poster-unclipped.svg',
+  // The poster section opens full-bleed on the panorama and settles the A3
+  // page over it; the page also stands in as the blurred backdrop elsewhere.
+  // All three come from tools/poster-art.mjs.
+  'out/poster-wide.svg',
+  'out/poster-page.svg',
+  'out/poster-page.png',
   'out/promo.mp4',
   'out/promo-narrated.mp4',
   'out/book.html',

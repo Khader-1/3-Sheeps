@@ -102,44 +102,47 @@
   }
   .badge.wip { background: rgba(255,210,63,.14); border-color: rgba(255,210,63,.5); color: var(--gold); }
 
-  /* ---- the poster resolving out of its own scene ----------------------
-     The poster's background is one of the film's own scenes, and the A3 page
-     only ever showed the middle of it: out/poster.svg is viewBox 0 0 842 1191
-     with everything inside a group carrying clip-path="url(#page)", while the
-     artwork under that clip runs from x=-239 to x=1083.8. So 239 units of
-     scene are cut off the left and 242 off the right.
+  /* ---- the poster, and the world it was cut out of --------------------
+     There are two posters, both drawn: ملصق-عريض is the panorama, the same
+     scene painted out to 1885×1031, and ملصق-ضيق carries the A3 page as a
+     clipPath, which tools/poster-art.mjs crops out as poster-page.svg.
 
-     tools/poster-unclipped.mjs releases the clip and widens the frame. The
-     section opens on that whole scene and then lets the cropped wings fade
-     away, so the poster resolves out of the picture it was taken from instead
-     of simply appearing.
+     So the section opens full-bleed on the panorama and holds it while the
+     presenter names it, then settles the page over it as the panorama dims —
+     the world first, the product second.
 
-     One image with two curtains, not two stacked images. Cross-fading a full
-     copy over a cropped copy would need them registered to the pixel; curtains
-     cannot drift, because the wings are fixed shares of the very image they
-     sit on — 18.068% and 18.278%, printed by the generator. */
-  .unclip {
-    position: relative; height: 100%; max-width: 100%;
-    aspect-ratio: 1322.78 / 1191;
+     Deliberately not a cross-fade between the two. They are not the same
+     drawing: the cast is redrawn smaller and shifted in the wide version, so
+     dissolving one into the other would make it jump. Laying the page on top
+     claims no registration and needs none. */
+  .pano { position: absolute; inset: 0; z-index: 0;
+    background: center/cover no-repeat var(--art); }
+  /* Cream chrome over a bright sky is unreadable, so the top and bottom bands
+     are always held down; the timed dim on top of that is what hands the eye
+     over to the poster. */
+  .pano-scrim {
+    position: absolute; inset: 0; z-index: 0;
+    background: linear-gradient(rgba(4,8,3,.58), rgba(4,8,3,.10) 24%,
+                                rgba(4,8,3,.10) 72%, rgba(4,8,3,.58));
   }
-  .unclip img { width: 100%; height: 100%; display: block; }
-  .wing {
-    position: absolute; top: 0; bottom: 0; background: var(--ink); opacity: 0;
+  .pano-dim {
+    position: absolute; inset: 0; z-index: 0; background: rgba(4,8,3,0);
     /* Reset only after the section has finished fading out, so leaving
-       mid-reveal never flashes the wings back in on the way past. */
-    transition: opacity 0s linear .6s;
+       mid-reveal never flashes the panorama back to full on the way past. */
+    transition: background 0s linear .6s;
   }
-  .wing.l { left: 0; width: 18.068%; }
-  .wing.r { right: 0; width: 18.278%; }
-  /* Hold the whole scene for a beat, then take the wings. */
-  .slide.on .wing { opacity: 1; transition: opacity 1.6s ease 1.3s; }
-  /* The page gains its own edge once it is alone. */
-  .unclip .page-edge {
-    position: absolute; top: 0; bottom: 0; left: 18.068%; right: 18.278%;
-    box-shadow: 0 24px 90px rgba(0,0,0,.85); pointer-events: none;
-    opacity: 0; transition: opacity 0s linear .6s;
+  .slide.on .pano-dim { background: rgba(4,8,3,.66); transition: background 1.5s ease 1.4s; }
+  /* The three layers above are absolute; everything else is grid content and
+     has to sit over them. */
+  #s-poster > div:not([class^="pano"]) { position: relative; z-index: 1; }
+  #s-poster .page {
+    opacity: 0; transform: scale(.93) translateY(3vmin);
+    transition: opacity 0s linear .6s, transform 0s linear .6s;
   }
-  .slide.on .page-edge { opacity: 1; transition: opacity 1.6s ease 1.3s; }
+  #s-poster.on .page {
+    opacity: 1; transform: none;
+    transition: opacity 1.1s ease 1.5s, transform 1.5s cubic-bezier(.2,.8,.2,1) 1.5s;
+  }
 
   /* ---- media --------------------------------------------------------- */
   .stage img.poster { max-width: 100%; max-height: 100%; border-radius: 8px;
@@ -228,7 +231,7 @@
 
   <!-- 1 ------------------------------------------------------------- -->
   <section class="slide" id="s-title" data-title="الغلاف" data-name="البداية">
-    <div class="bg-poster" style="--shot:url('out/poster.png')"></div>
+    <div class="bg-poster" style="--shot:url('out/poster-page.png')"></div>
     <div class="vignette"></div>
     <div class="wrap">
       <img class="crest" src="out/heads/trio.png" alt="">
@@ -239,15 +242,12 @@
 
   <!-- 2 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
+    <div class="pano" style="--art:url('out/poster-wide.svg')"></div>
+    <div class="pano-scrim"></div>
+    <div class="pano-dim"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
-    <div class="stage">
-      <div class="unclip">
-        <img src="out/poster-unclipped.svg" alt="ملصق الفيلم">
-        <i class="wing l"></i><i class="wing r"></i>
-        <i class="page-edge"></i>
-      </div>
-    </div>
-    <div class="foot"><span>رُسم بالكامل من مشاهد الفيلم نفسها</span></div>
+    <div class="stage"><img class="poster page" src="out/poster-page.svg" alt="ملصق الفيلم"></div>
+    <div class="foot"><span>المشهد كاملًا، والملصق مقتطعٌ منه</span></div>
   </section>
 
   <!-- 3 ------------------------------------------------------------- -->
@@ -307,7 +307,7 @@
 
   <!-- 7 ------------------------------------------------------------- -->
   <section class="slide" id="s-end" data-title="الخاتمة" data-name="شكراً">
-    <div class="bg-poster" style="--shot:url('out/poster.png')"></div>
+    <div class="bg-poster" style="--shot:url('out/poster-page.png')"></div>
     <div class="vignette"></div>
     <div style="z-index:1"><div class="kicker">٠٦</div></div>
     <div class="stage" style="z-index:1">

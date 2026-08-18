@@ -178,7 +178,8 @@ server.listen(PORT, '0.0.0.0', () => {
   for (const a of addrs) console.log(`  network   http://${a}:${PORT}/`);
   const host = addrs[0] || 'localhost';
   console.log(`\n  outputs   http://${host}:${PORT}/out/`);
-  console.log(`  poster    http://${host}:${PORT}/out/poster.svg`);
+  console.log(`  poster    http://${host}:${PORT}/out/poster-page.svg`);
+  console.log(`  wide      http://${host}:${PORT}/out/poster-wide.svg`);
   console.log(`  assets    http://${host}:${PORT}/assets/incoming/`);
   console.log('\nUnauthenticated: anyone on this network can read every project file.');
 });
