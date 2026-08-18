@@ -77,7 +77,7 @@ const JOBS = [
     reframe: true,
     // Both of these came out of Illustrator misplaced; see the placement step.
     place: [
-      { id: 'الشعارات', fit: 'stretch' },
+      { id: 'الشعارات', fit: 'import' },
       { id: 'الشخصيات', fit: 'characters',
         by: ['الذئب', 'الخروف-الأكبر', 'الخروف-الأوسط', 'الخروف-الأصغر'] },
     ],
@@ -169,7 +169,12 @@ async function measureA3() {
     for (const g of svg.querySelectorAll('g')) {
       if (ids.includes(g.id) && !boxes[g.id]) boxes[g.id] = boxIn(g);
     }
-    return { page: { w, h }, boxes };
+    // The band's own markup, to be transplanted whole. class="cls-N" has to go:
+    // it means nothing outside this file, and the file it is going into has its
+    // own .cls-7 that would repaint the cards.
+    const band = [...svg.querySelectorAll('g')].find((g) => g.id === 'الشعارات');
+    const markup = band ? band.outerHTML.replace(/\sclass="cls-\d+"/g, '') : null;
+    return { page: { w, h }, boxes, markup };
   }, ['الشخصيات', 'الشعارات', 'الذئب', 'الخروف-الأكبر', 'الخروف-الأوسط', 'الخروف-الأصغر']);
   await p.close();
   return r;
@@ -389,10 +394,33 @@ try {
             const t = mapped(rb);
             const b = boxIn(g);
 
+            if (fit === 'import') {
+              // The band is not repositioned, it is replaced. Illustrator
+              // re-encoded both logo rasters with blank space added below —
+              // 678×879 came back 678×1088, and the square seal 205×205 came
+              // back 206×254 — so preserveAspectRatio fits them inside their
+              // unchanged boxes at 81% and sits them high. No transform fixes
+              // that; the padding is in the pixels. The reference's own band
+              // carries the rasters cropped right, and it is self-contained —
+              // two rects and two images, no url(#…) into that file's defs —
+              // so it transplants cleanly.
+              const holder = document.createElementNS(NS, 'g');
+              holder.setAttribute('transform',
+                `translate(${page.x.toFixed(2)} ${page.y.toFixed(2)}) scale(${q.toFixed(6)})`);
+              holder.innerHTML = a3.markup;
+              g.parentNode.insertBefore(holder, g);
+              g.remove();
+              const nb = boxIn(holder);
+              out.placed.push({ id, fit, note: 'rasters re-cropped', sx: 1, sy: 1,
+                                was: `${b.x.toFixed(0)},${b.y.toFixed(0)} ${b.w.toFixed(0)}×${b.h.toFixed(0)}`,
+                                now: `${nb.x.toFixed(0)},${nb.y.toFixed(0)} ${nb.w.toFixed(0)}×${nb.h.toFixed(0)}` });
+              continue;
+            }
+
             let sx, sy, nx, ny, note = '';
             if (fit === 'stretch') {
-              // The band: both axes, because the squeeze is a defect and
-              // undoing it is what makes the seal round again.
+              // Both axes, for a group whose box is wrong but whose contents
+              // are sound.
               sx = t.w / b.w; sy = t.h / b.h;
               nx = t.x; ny = t.y;
             } else {

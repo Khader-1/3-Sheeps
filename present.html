@@ -122,7 +122,11 @@
        .pano.back    the whole scenery
        .pano.cast    the cast, the type, the logos — all of them, fading out
        .haze         backdrop-filter, masked to everything but the portrait
-       .pano.front   the same, cropped to the page, over the veil and staying
+       .pano.front   the cast again, cropped to the page, over the veil
+
+     No drawn border. The veil's mask is a hard cut at the page's rectangle,
+     and where lit artwork meets smoked glass that is already an edge; a line
+     over it only reads as a mount.
 
      The scenery does not leave one way. Dissolving alone lets bright sky thin
      out while staying bright; darkening alone leaves the hills sitting there
@@ -151,9 +155,12 @@
     --wx1: calc(50% + 35.35vh);
     --wy0: 7vh;
     --wy1: 93vh;
-    /* How far the edge takes to arrive. Wide enough not to be a cut, narrow
-       enough that the window has a definite edge rather than a haze. */
-    --soft: 1.9vh;
+    /* The width of the boundary itself. A hard cut: the poster has an edge,
+       the way a printed sheet lying on a table has one, and any ramp wide
+       enough to see reads as a shadow rather than as an edge. Not zero, only
+       because a bare 0 leaves the mask to alias against the diagonal of the
+       hills. */
+    --soft: 1px;
     /* Sky above the artwork, field below it — the exact two colours its own
        edges end on. */
     --fill: linear-gradient(#8fd4f5 0 var(--art-y, 0px), #9ac349 var(--art-b, 100%) 100%);
@@ -238,14 +245,14 @@
   #s-poster.on .pano.cast { opacity: 0; transition: opacity 2s ease 1.4s; }
   .haze {
     position: absolute; inset: 0; z-index: 1; opacity: 0;
-    /* Frosted rather than blacked out: most of the work is the blur, and the
-       film over it is the deck's own paper at a few percent, so the scenery
-       reads as glass with something behind it instead of as a hole. */
-    -webkit-backdrop-filter: blur(2.6vh) saturate(.75) brightness(.55);
-    backdrop-filter: blur(2.6vh) saturate(.75) brightness(.55);
+    /* Frosted, but dark: the blur and the drain do most of the work, and the
+       ink over them takes the rest of the light out, so the scenery reads as
+       smoked glass rather than as a bright thing merely out of focus. */
+    -webkit-backdrop-filter: blur(2.6vh) saturate(.55) brightness(.34);
+    backdrop-filter: blur(2.6vh) saturate(.55) brightness(.34);
     /* The tint also covers browsers without backdrop-filter, which would
        otherwise get no veil at all. */
-    background: linear-gradient(rgba(255,246,220,.09), rgba(4,8,3,.30));
+    background: linear-gradient(rgba(4,8,3,.42), rgba(4,8,3,.58));
     -webkit-mask-image: var(--veil-x), var(--veil-y);
     mask-image: var(--veil-x), var(--veil-y);
     mask-composite: add;
