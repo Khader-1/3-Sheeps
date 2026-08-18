@@ -119,14 +119,21 @@
      portrait's edge and soften it without ever touching the wolf's tail or
      the last letter of the title.
 
-       .pano.back    the whole scenery
-       .pano.cast    the cast, the type, the logos — all of them, fading out
-       .haze         backdrop-filter, masked to everything but the portrait
-       .pano.front   the cast again, cropped to the page, over the veil
+       .pano.scenery       the whole scenery
+       .pano.cast          the cast, the type, the logos — fading out
+       .haze               backdrop-filter over all of it, no mask
+       .pano.scenery.win   the scenery again, clipped to the page
+       .pano.win           the cast again, clipped to the page
 
-     No drawn border. The veil's mask is a hard cut at the page's rectangle,
-     and where lit artwork meets smoked glass that is already an edge; a line
-     over it only reads as a mount.
+     The veil covers the screen and the page is put back on top of it, rather
+     than the veil being cut around the page. Same picture either way, but a
+     rounded rectangle is not something two linear gradients can describe, and
+     clip-path states it in one line. Both window copies are the identical
+     drawing in the identical place as the layers beneath, so the moment
+     before the veil arrives is unchanged by their being there.
+
+     No drawn border: where lit artwork meets smoked glass is already an edge,
+     and a line over it only reads as a mount.
 
      The scenery does not leave one way. Dissolving alone lets bright sky thin
      out while staying bright; darkening alone leaves the hills sitting there
@@ -155,40 +162,13 @@
     --wx1: calc(50% + 35.35vh);
     --wy0: 7vh;
     --wy1: 93vh;
-    /* The width of the boundary itself. A hard cut: the poster has an edge,
-       the way a printed sheet lying on a table has one, and any ramp wide
-       enough to see reads as a shadow rather than as an edge. Not zero, only
-       because a bare 0 leaves the mask to alias against the diagonal of the
-       hills. */
-    --soft: 1px;
+    /* The corner radius of the page, and nothing else about its edge: the
+       boundary is where lit artwork meets smoked glass, which is already a
+       hard edge and needs no line drawn on it. */
+    --radius: clamp(5px, 1.1vh, 14px);
     /* Sky above the artwork, field below it — the exact two colours its own
        edges end on. */
     --fill: linear-gradient(#8fd4f5 0 var(--art-y, 0px), #9ac349 var(--art-b, 100%) 100%);
-    /* Two bands, unioned by the default mask compositing: opaque outside the
-       column, opaque outside the row, so what is left clear is the overlap —
-       the window — with every edge ramped. */
-    --veil-x: linear-gradient(to right,
-      #000        calc(var(--wx0) - var(--soft)),
-      transparent calc(var(--wx0) + var(--soft)),
-      transparent calc(var(--wx1) - var(--soft)),
-      #000        calc(var(--wx1) + var(--soft)));
-    --veil-y: linear-gradient(to bottom,
-      #000        calc(var(--wy0) - var(--soft)),
-      transparent calc(var(--wy0) + var(--soft)),
-      transparent calc(var(--wy1) - var(--soft)),
-      #000        calc(var(--wy1) + var(--soft)));
-    /* The same two bands the other way up, for the copy of the cast that is
-       kept rather than the scenery that is dropped. */
-    --win-x: linear-gradient(to right,
-      transparent calc(var(--wx0) - var(--soft)),
-      #000        calc(var(--wx0) + var(--soft)),
-      #000        calc(var(--wx1) - var(--soft)),
-      transparent calc(var(--wx1) + var(--soft)));
-    --win-y: linear-gradient(to bottom,
-      transparent calc(var(--wy0) - var(--soft)),
-      #000        calc(var(--wy0) + var(--soft)),
-      #000        calc(var(--wy1) - var(--soft)),
-      transparent calc(var(--wy1) + var(--soft)));
   }
   /* Scaled and placed so the page lands exactly on the window — never
      `cover`, which centres the artwork and would put its middle in the
@@ -203,8 +183,7 @@
     background-position: var(--art-x, center) var(--art-y, 0);
     background-repeat: no-repeat;
   }
-  .pano.back {
-    z-index: 0;
+  .pano.scenery {
     /* At the poster's scale the panorama no longer reaches the corners of the
        screen, so the scenery is carried outward two ways. Across: repeat-x,
        which is seamless in the only way that matters here — every copy shares
@@ -217,34 +196,20 @@
     background-position: var(--art-x, center) var(--art-y, 0), 0 0;
     background-repeat: repeat-x, no-repeat;
   }
-  /* The cast twice. On the printed page the wolf's tail runs off the edge and
-     the page clip takes it; here the page has no clip, so the crop is done
-     with the two copies instead.
-
-       .cast    all of it, under the veil, fading out
-       .front   the part inside the page, over the veil, never fading
-
-     Inside the window the two are the same drawing in the same place, so the
-     sum stays exactly one copy however far .cast has faded and the poster
-     never flickers. Outside, .cast is the only one there, so the tail goes —
-     and it goes hazed, having been under the veil the whole time, rather than
-     as a sharp thing dissolving over a blurred one. */
+  /* The page, cut out of a full-screen layer rather than masked into one.
+     A rounded rectangle is not something two linear gradients can describe,
+     and clip-path states it in one line. */
+  .pano.win {
+    clip-path: inset(var(--wy0) calc(100% - var(--wx1))
+                     calc(100% - var(--wy1)) var(--wx0) round var(--radius));
+  }
   .pano.cast {
-    z-index: 1;
     /* Reset only after the section has finished fading out. */
     transition: opacity 0s linear .6s;
   }
-  .pano.front {
-    z-index: 3;
-    -webkit-mask-image: var(--win-x), var(--win-y);
-    mask-image: var(--win-x), var(--win-y);
-    /* Both bands must agree for a pixel to be kept, or the corners leak. */
-    -webkit-mask-composite: source-in;
-    mask-composite: intersect;
-  }
   #s-poster.on .pano.cast { opacity: 0; transition: opacity 2s ease 1.4s; }
   .haze {
-    position: absolute; inset: 0; z-index: 1; opacity: 0;
+    position: absolute; inset: 0; opacity: 0;
     /* Frosted, but dark: the blur and the drain do most of the work, and the
        ink over them takes the rest of the light out, so the scenery reads as
        smoked glass rather than as a bright thing merely out of focus. */
@@ -253,19 +218,17 @@
     /* The tint also covers browsers without backdrop-filter, which would
        otherwise get no veil at all. */
     background: linear-gradient(rgba(4,8,3,.42), rgba(4,8,3,.58));
-    -webkit-mask-image: var(--veil-x), var(--veil-y);
-    mask-image: var(--veil-x), var(--veil-y);
-    mask-composite: add;
     /* Reset only after the section has finished fading out, so leaving
        mid-reveal never flashes the scenery back in on the way past. */
     transition: opacity 0s linear .6s;
   }
   /* Hold the whole scene while the presenter names it, then take the ends. */
   #s-poster.on .haze { opacity: 1; transition: opacity 2s ease 1.4s; }
-  /* Grid content sits over all three. No scrim: one would darken the poster's
-     own sky and grass along with everything else, so the chrome carries its
-     own weight instead. */
-  #s-poster > div:not(.pano) { position: relative; z-index: 4;
+  /* Every layer above is positioned with z-index auto, so they paint in
+     document order and the stack reads off the markup. The chrome only needs
+     to beat them. No scrim: one would darken the poster's own sky and grass
+     along with everything else, so the chrome carries its own weight. */
+  #s-poster > div:not(.pano) { position: relative; z-index: 1;
     text-shadow: 0 .06em .5em rgba(4,8,3,.95), 0 0 .3em rgba(4,8,3,.8); }
 
   /* ---- media --------------------------------------------------------- */
@@ -369,10 +332,11 @@
 
   <!-- 2 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
-    <div class="pano back" style="--art:url('out/poster-wide-bg.svg')"></div>
+    <div class="pano scenery" style="--art:url('out/poster-wide-bg.svg')"></div>
     <div class="pano cast" style="--art:url('out/poster-wide-fg.svg')"></div>
     <i class="haze"></i>
-    <div class="pano front" style="--art:url('out/poster-wide-fg.svg')"></div>
+    <div class="pano scenery win" style="--art:url('out/poster-wide-bg.svg')"></div>
+    <div class="pano win" style="--art:url('out/poster-wide-fg.svg')"></div>
     <div><div class="kicker">٠١ — الهوية البصرية</div><h2>الملصق</h2></div>
     <div class="stage"></div>
     <div class="foot"><span>المشهد كاملًا، ثم الملصق وحده</span></div>
