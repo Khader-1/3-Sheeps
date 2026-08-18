@@ -80,6 +80,14 @@
   /* ---- 1. title ------------------------------------------------------ */
   #s-title { grid-template-rows: 1fr; place-items: center; text-align: center; }
   #s-title .wrap { display: grid; gap: .35em; justify-items: center; z-index: 1; }
+  /* The cast standing over the title. The heads are the transparent cluster
+     from tools/heads-art.mjs rather than the whole lockup baked to an image:
+     the title underneath stays live text, so it keeps its outline, scales with
+     the viewport and stays crisp on a projector at any size. */
+  .crest {
+    width: clamp(180px, 30vmin, 420px); display: block; margin-bottom: -1.5vmin;
+    filter: drop-shadow(0 .04em .05em rgba(0,0,0,.55));
+  }
   .bg-poster {
     position: absolute; inset: -8%; z-index: 0;
     background: center/cover no-repeat var(--shot);
@@ -185,6 +193,7 @@
     <div class="vignette"></div>
     <div class="wrap">
       <div class="kicker">مشروع تخرّج</div>
+      <img class="crest" src="out/heads/trio.png" alt="">
       <h1 class="titled">الخراف الثلاثة<br>والذئب الماكر</h1>
       <div class="sub">فيلم رسوم متحركة · ملصق · إعلان · كتاب · سبع ألعاب</div>
       <div class="sub" style="margin-top:1.4em">كلية فلسطين التقنية — دير البلح<br>الوسائط المتعددة والرسوم المتحركة</div>

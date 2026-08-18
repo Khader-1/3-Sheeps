@@ -45,6 +45,8 @@ const DELIVERABLES = [
   'out/promo.mp4',
   'out/promo-narrated.mp4',
   'out/book.html',
+  // The cast cluster that stands over the deck's title.
+  'out/heads/trio.png',
 ];
 
 const files = tracked.filter((f) => !EXCLUDE.some((re) => re.test(f)));
