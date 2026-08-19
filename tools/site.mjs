@@ -55,6 +55,9 @@ const DELIVERABLES = [
   'out/poster-wide-fg.svg',
   'out/poster-wide.png',
   'out/promo.mp4',
+  // The second trailer, delivered finished and re-encoded by tools/promos.mjs
+  // to fit under the 25 MiB Cloudflare Pages refuses to exceed.
+  'out/promo-2.mp4',
   'out/promo-narrated.mp4',
   'out/book.html',
   // The cast cluster that stands over the deck's title.

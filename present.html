@@ -444,8 +444,8 @@
 
 
   <!-- 2 ------------------------------------------------------------- -->
-  <section class="slide full" id="s-promo" data-title="الإعلان" data-name="الإعلان">
-    <div class="head"><div class="kicker">٠١ — الإعلان التشويقي</div><h2>الإعلان</h2></div>
+  <section class="slide full" id="s-promo" data-title="إعلان ١" data-name="إعلان ١">
+    <div class="head"><div class="kicker">٠١ — الإعلان التشويقي</div><h2>إعلان ١</h2></div>
     <div class="stage">
       <video id="v-promo" src="out/promo.mp4" preload="metadata" playsinline controls></video>
       <div class="tap" data-for="v-promo"><span>▶</span></div>
@@ -454,9 +454,22 @@
   </section>
 
   <!-- 3 ------------------------------------------------------------- -->
+  <!-- Only this one preloads nothing: two trailers back to back would have
+       the second one pulling its first megabytes while the first is still
+       playing, over whatever wifi the hall has. -->
+  <section class="slide full" id="s-promo2" data-title="إعلان ٢" data-name="إعلان ٢">
+    <div class="head"><div class="kicker">٠٢ — الإعلان التشويقي</div><h2>إعلان ٢</h2></div>
+    <div class="stage">
+      <video id="v-promo2" src="out/promo-2.mp4" preload="none" playsinline controls></video>
+      <div class="tap" data-for="v-promo2"><span>▶</span></div>
+    </div>
+    <div class="foot"><span>٢٧ ثانية</span></div>
+  </section>
+
+  <!-- 4 ------------------------------------------------------------- -->
   <section class="slide full" id="s-film" data-title="الفيلم" data-name="الفيلم">
     <div class="head">
-      <div class="kicker">٠٢ — الفيلم</div>
+      <div class="kicker">٠٣ — الفيلم</div>
       <h2>الفيلم <span class="badge wip">قيد الإنتاج</span></h2>
     </div>
     <div class="stage">
@@ -465,7 +478,7 @@
     </div>
     <div class="foot"><span>تُعرض النسخة المعلَّق عليها من الإعلان ريثما يكتمل الفيلم</span></div>
   </section>
-  <!-- 4 ------------------------------------------------------------- -->
+  <!-- 5 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
     <div class="pano scenery" style="--art:url('out/poster-wide-bg.svg')"></div>
     <div class="pano cast" style="--art:url('out/poster-wide-fg.svg')"></div>
@@ -473,14 +486,14 @@
     <i class="glow"></i>
     <div class="pano scenery win" style="--art:url('out/poster-wide-bg.svg')"></div>
     <div class="pano win" style="--art:url('out/poster-wide-fg.svg')"></div>
-    <div><div class="kicker">٠٣ — الهوية البصرية</div><h2>الملصق</h2></div>
+    <div><div class="kicker">٠٤ — الهوية البصرية</div><h2>الملصق</h2></div>
     <div class="stage"></div>
     <div class="foot"><span>المشهد كاملًا، ثم الملصق وحده</span></div>
   </section>
 
   <!-- 5 ------------------------------------------------------------- -->
   <section class="slide full" id="s-games" data-title="الألعاب" data-name="الألعاب">
-    <div class="head"><div class="kicker">٠٤ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
+    <div class="head"><div class="kicker">٠٥ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
     <div class="tally" id="tally"><p><span class="w n" id="tally-n">لعبة</span><span class="w" id="tally-a">صغيرة</span></p></div>
     <div class="stage">
       <div class="pane">
@@ -496,7 +509,7 @@
 
   <!-- 6 ------------------------------------------------------------- -->
   <section class="slide full" id="s-book" data-title="الكتاب" data-name="الكتاب">
-    <div class="head"><div class="kicker">٠٥ — كتاب مصوّر</div><h2>الكتاب</h2></div>
+    <div class="head"><div class="kicker">٠٦ — كتاب مصوّر</div><h2>الكتاب</h2></div>
     <div class="stage">
       <div class="pane">
         <div class="holder" id="book-holder"></div>
@@ -515,7 +528,7 @@
   <section class="slide" id="s-end" data-title="الخاتمة" data-name="شكراً">
     <div class="bg-poster" style="--shot:url('out/poster-wide.png')"></div>
     <div class="vignette"></div>
-    <div style="z-index:1"><div class="kicker">٠٦</div></div>
+    <div style="z-index:1"><div class="kicker">٠٧</div></div>
     <div class="stage" style="z-index:1">
       <div style="text-align:center">
         <h1 class="titled">شكراً لكم</h1>

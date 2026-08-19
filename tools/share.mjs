@@ -6,6 +6,15 @@
 // Serves the project root with directory browsing. Exported SVGs are
 // self-contained (fonts and logos embedded), so they render on any device
 // with no extra requests.
+//
+// It also takes uploads, at /upload. Delivered artwork keeps arriving as
+// hundreds of megabytes of video, which is past what a chat attachment or a
+// USB round trip is worth; a drag-and-drop page on the same LAN server hands
+// them straight to the machine that has to encode them.
+//
+// Uploads may only land in assets/incoming/ — the one directory that holds
+// delivered source material — and the name is stripped to its last component,
+// so nothing a client sends can write anywhere else in the tree.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -15,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.argv[2]) || 8787;
+const UPLOAD_DIR = path.join(ROOT, 'assets/incoming');
 
 const TYPES = {
   '.svg': 'image/svg+xml; charset=utf-8',
@@ -132,12 +142,155 @@ ${grid}
 </body></html>`;
 }
 
+const UPLOAD_PAGE = `<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>رفع ملفات</title><style>${CSS}
+body { padding:22px 18px 60px; }
+h1 { direction:rtl; text-align:right; font-size:19px; }
+.hint { opacity:.55; font-size:13px; margin:0 0 20px; }
+#drop { border:2px dashed #3a4150; border-radius:14px; padding:44px 18px;
+        text-align:center; background:#171a21; cursor:pointer; transition:.15s; }
+#drop.hot { border-color:#8ab4ff; background:#1d2330; }
+#drop b { display:block; font-size:17px; margin-bottom:6px; }
+#drop span { opacity:.5; font-size:13px; }
+#list { margin-top:20px; }
+.row { border:1px solid #2a2f3a; border-radius:10px; background:#1b1e26;
+       padding:11px 13px; margin-bottom:8px; }
+.row .top { display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+.row .nm { word-break:break-all; }
+.row .st { opacity:.5; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.bar { height:5px; border-radius:3px; background:#2a2f3a; margin-top:9px; overflow:hidden; }
+.bar i { display:block; height:100%; width:0; background:#8ab4ff; transition:width .2s; }
+.done .bar i { background:#5cc98a; }
+.fail .bar i { background:#e2686a; width:100% !important; }
+</style></head><body>
+<h1>رفع ملفات إلى المشروع</h1>
+<p class="hint">بتنحفظ في <code style="direction:ltr;display:inline-block">assets/incoming/</code> — ما في حدّ للحجم.</p>
+<div id="drop"><b>اسحب الملفات لهون</b><span>أو اضغط للاختيار</span></div>
+<input id="pick" type="file" multiple hidden>
+<div id="list"></div>
+<script>
+const drop = document.getElementById('drop');
+const pick = document.getElementById('pick');
+const list = document.getElementById('list');
+const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
+
+drop.onclick = () => pick.click();
+pick.onchange = () => { send([...pick.files]); pick.value = ''; };
+for (const ev of ['dragenter', 'dragover']) {
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('hot'); });
+}
+for (const ev of ['dragleave', 'drop']) {
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('hot'); });
+}
+drop.addEventListener('drop', (e) => send([...e.dataTransfer.files]));
+
+// One at a time. Several large files racing each other on a phone's wifi just
+// makes every one of them slower and the progress bars meaningless.
+let queue = Promise.resolve();
+function send(files) {
+  for (const f of files) queue = queue.then(() => put(f));
+}
+
+function put(file) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = '<div class="top"><span class="nm"></span><span class="st">في الانتظار…</span></div>' +
+                  '<div class="bar"><i></i></div>';
+  row.querySelector('.nm').textContent = file.name;
+  list.prepend(row);
+  const st = row.querySelector('.st');
+  const bar = row.querySelector('.bar i');
+
+  return new Promise((done) => {
+    const x = new XMLHttpRequest();
+    x.open('PUT', '/upload/' + encodeURIComponent(file.name));
+    x.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      bar.style.width = (e.loaded / e.total * 100) + '%';
+      st.textContent = mb(e.loaded) + ' / ' + mb(e.total);
+    };
+    x.onload = () => {
+      const ok = x.status >= 200 && x.status < 300;
+      row.classList.add(ok ? 'done' : 'fail');
+      st.textContent = ok ? 'تمّ · ' + mb(file.size) : 'فشل · ' + x.responseText;
+      if (ok) bar.style.width = '100%';
+      done();
+    };
+    x.onerror = () => { row.classList.add('fail'); st.textContent = 'انقطع الاتصال'; done(); };
+    x.send(file);
+  });
+}
+</script></body></html>`;
+
+/**
+ * Where an upload is allowed to land.
+ *
+ * path.basename first, so a name like ../../sw.js or one with a directory in
+ * it collapses to its last component before it is ever joined to anything.
+ * The startsWith check after the join is the belt to that braces: it catches
+ * whatever basename does not, on whichever platform.
+ */
+function uploadTarget(name) {
+  const base = path.basename(name).replace(/^\.+/, '').trim();
+  if (!base) return null;
+  const file = path.join(UPLOAD_DIR, base);
+  if (path.dirname(file) !== UPLOAD_DIR) return null;
+  return file;
+}
+
+function receive(req, res, name) {
+  const file = uploadTarget(name);
+  if (!file) {
+    res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' }).end('bad name');
+    return;
+  }
+
+  // Into a .part first. A connection dropped halfway through would otherwise
+  // leave a truncated file sitting under its real name, looking finished.
+  const part = file + '.part';
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const out = fs.createWriteStream(part);
+
+  const fail = (code, why) => {
+    out.destroy();
+    fs.rm(part, { force: true }, () => {});
+    if (!res.headersSent) res.writeHead(code, { 'content-type': 'text/plain; charset=utf-8' }).end(why);
+  };
+
+  req.on('aborted', () => fail(400, 'aborted'));
+  out.on('error', (e) => fail(500, e.message));
+  req.pipe(out);
+
+  out.on('finish', () => {
+    if (req.aborted) return;
+    fs.renameSync(part, file);
+    const size = fs.statSync(file).size;
+    console.log(`  ← ${path.relative(ROOT, file)}  ${(size / 1048576).toFixed(1)} MB`);
+    res.writeHead(201, { 'content-type': 'text/plain; charset=utf-8' }).end('ok');
+  });
+}
+
 const server = http.createServer((req, res) => {
   let rel;
   try {
     rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   } catch {
     res.writeHead(400).end('bad url');
+    return;
+  }
+
+  if (req.method === 'PUT' && rel.startsWith('/upload/')) {
+    receive(req, res, rel.slice('/upload/'.length));
+    return;
+  }
+  if (rel === '/upload' || rel === '/upload/') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(UPLOAD_PAGE);
+    return;
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { 'content-type': 'text/plain; charset=utf-8' }).end('read-only');
     return;
   }
 
@@ -181,5 +334,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  poster    http://${host}:${PORT}/out/poster-page.svg`);
   console.log(`  wide      http://${host}:${PORT}/out/poster-wide.svg`);
   console.log(`  assets    http://${host}:${PORT}/assets/incoming/`);
-  console.log('\nUnauthenticated: anyone on this network can read every project file.');
+  console.log(`\n  UPLOAD    http://${host}:${PORT}/upload`);
+  console.log('\nUnauthenticated: anyone on this network can read every project file,');
+  console.log('and write new ones into assets/incoming/ — nowhere else.');
 });
