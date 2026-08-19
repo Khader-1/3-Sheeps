@@ -762,6 +762,20 @@
     font-size: clamp(34px, 9vmin, 140px);
     color: #FFF3C4; -webkit-text-stroke: .06em #22160b; paint-order: stroke fill;
   }
+  /* And the count is acted out as well as printed: one sheep goes over for
+     لعبة، two for لعبتان، and by سبع ألعاب there are seven of them in the air
+     at once. See hopBatch() below.
+
+     Behind the type. An absolutely-positioned child paints above ordinary
+     in-flow content whatever the document order says, so the line has to be
+     given a position of its own to get back on top of them — otherwise a
+     sheep crosses the middle of the number at the exact moment the room is
+     meant to be reading it. */
+  /* width/height as well as inset: an <svg> with no viewBox yet is a replaced
+     element with no intrinsic ratio, and inset:0 does not stretch one of
+     those — it sits at the 300×150 default until something gives it a shape. */
+  .tally .hops { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .tally p { position: relative; z-index: 1; }
   .tally .w { position: relative; display: inline-block; }
   /* The rule is drawn, not typed: a struck-through glyph run in the font would
      land the line wherever the font decided, and it has to sweep.
@@ -985,7 +999,7 @@
   <!-- 5 ------------------------------------------------------------- -->
   <section class="slide full" id="s-games" data-title="الألعاب" data-name="الألعاب">
     <div class="head"><div class="kicker">٠٥ — تطبيق قابل للتثبيت</div><h2>سبع ألعاب</h2></div>
-    <div class="tally" id="tally"><p><span class="w n" id="tally-n">لعبة</span><span class="w" id="tally-a">صغيرة</span></p></div>
+    <div class="tally" id="tally"><svg class="hops" id="hops" aria-hidden="true"></svg><p><span class="w n" id="tally-n">لعبة</span><span class="w" id="tally-a">صغيرة</span></p></div>
     <div class="stage">
       <div class="pane">
         <div class="holder" id="games-holder"></div>
@@ -1204,6 +1218,7 @@
 
   function onKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+
     // The count is a flourish, never a wait.
     if (tally.classList.contains('on')) { countDone(); return; }
     // The layout decides which letter a key types; the key is what was meant.
@@ -1334,6 +1349,11 @@
     // run: it is a per-frame rig pose, and two of them ticking behind the film
     // is a stutter nobody would trace back to here.
     if (s.id === 's-poster') startChase(); else stopChase();
+    // Seven rigs is a second of parsing, and the count starts the moment the
+    // games section lands. Warmed on the first move off the title instead —
+    // by then the deck is idle and nobody is within four sections of needing
+    // them. Guarded, so this is one load however many times it is called.
+    warmHoppers();
     chrome(s, true);
   }
 
@@ -1357,11 +1377,12 @@
   const tally = document.getElementById('tally');
   const tallyN = document.getElementById('tally-n');
   const tallyA = document.getElementById('tally-a');
+  // Reading, adjective, and how many sheep go over the top of it.
   const TALLY = [
-    ['لعبة', 'صغيرة'],
-    ['لعبتان', 'صغيرتان'],
-    ['حتى ثلاث ألعاب', 'صغيرة'],
-    ['سبع ألعاب', 'صغيرة'],
+    ['لعبة', 'صغيرة', 1],
+    ['لعبتان', 'صغيرتان', 2],
+    ['حتى ثلاث ألعاب', 'صغيرة', 3],
+    ['سبع ألعاب', 'صغيرة', 7],
   ];
   let tallyRun = [];
 
@@ -1369,6 +1390,7 @@
     tallyRun.forEach(clearTimeout);
     tallyRun = [];
     tally.classList.remove('on');
+    hopsDone();
   }
 
   tally.addEventListener('click', countDone);
@@ -1379,7 +1401,8 @@
     tallyN.classList.remove('cut');
     tally.classList.add('on');
     const at = (ms, fn) => tallyRun.push(setTimeout(fn, ms));
-    TALLY.slice(1).forEach(([n, adj], i) => {
+    at(HOP_LEAD, () => hopBatch(TALLY[0][2]));
+    TALLY.slice(1).forEach(([n, adj, hops], i) => {
       const t = TALLY_HOLD + (TALLY_HOLD + TALLY_CUT) * i;
       at(t, () => tallyN.classList.add('cut'));
       at(t + TALLY_CUT, () => {
@@ -1392,9 +1415,156 @@
           void el.offsetWidth;   // restart the animation
           el.classList.add('swap');
         }
+        hopBatch(hops);
       });
     });
     at((TALLY_HOLD + TALLY_CUT) * (TALLY.length - 1) + TALLY_LAST, countDone);
+  }
+
+  // ---- and the sheep that come with it ----------------------------------
+  //
+  // Every reading of the count sends that many sheep over the top of it: one
+  // for لعبة، two for لعبتان، three for حتى ثلاث ألعاب، and by سبع ألعاب there
+  // are seven of them in the air at once. The joke in this sequence is the
+  // scope of the thing being bigger than the line admits, and seven sheep
+  // arriving where one was is that joke without a word of it.
+  //
+  // Each one goes up from under the bottom edge, over the middle, and back
+  // down out of frame, tumbling, with every limb going. A real ballistic arc —
+  // 4u(1−u) is the parabola through (0,0), (½,1) and (1,0) — because a jump
+  // eased any other way hangs at the top like a lift.
+  //
+  // Limbs come from the same stride() the film and the games walk on, run at a
+  // few cycles a second with the swing wound up and nothing to stand on. A
+  // walk cycle in mid-air is the oldest way there is to draw someone
+  // pedalling, and it costs nothing here that was not already written.
+  const HOP_DUR = 1.05;    // seconds in the air
+  const HOP_LEAD = 380;    // ms after the count appears, for the fade to finish
+  const hopsBox = document.getElementById('hops');
+  // Seven rigs because seven is the most that are ever up at once, cycling the
+  // three brothers so a row of them is not one sheep printed seven times.
+  const HOP_CAST = ['small', 'mid', 'big', 'small', 'big', 'mid', 'small'];
+  let hoppers = null, hopRaf = 0, hopWarm = null;
+
+  function warmHoppers() {
+    if (!hopWarm) hopWarm = loadHoppers().catch(() => null);
+    return hopWarm;
+  }
+
+  async function loadHoppers() {
+    if (hoppers) return hoppers;
+    let ex, gait, core;
+    try {
+      [ex, gait, core] = await Promise.all([
+        import('./src/expressions.js'),
+        import('./src/anim/gait.js'),
+        import('./src/rig.js'),
+      ]);
+    } catch { return null; }
+
+    const made = [];
+    for (const [i, key] of HOP_CAST.entries()) {
+      let rig;
+      try { rig = await ex.loadCharacter(key, 'front'); } catch { break; }
+      const holder = core.svgEl('g');
+      holder.style.display = 'none';
+      holder.appendChild(rig.node);
+      hopsBox.appendChild(holder);
+      // Only the smallest is drawn in a T-pose; his brothers' arms already
+      // hang, which is why every other caller in the project guards this call
+      // on the key and so does this one.
+      if (key === 'small') ex.restArms(rig);
+      gait.buildLimbChains(rig);
+      const rest = rig.bbox();
+      ex.applyExpression(rig, i % 3 === 1 ? 'surprised' : 'happy');
+      made.push({
+        rig, holder, rest, busy: false,
+        armBase: key === 'small' ? [ex.REST_ARMS['اليد_ش'], ex.REST_ARMS['اليد_ي']] : [0, 0],
+      });
+    }
+    if (!made.length) return null;
+    hoppers = { gait, list: made };
+    return hoppers;
+  }
+
+  /** Send `n` of them over, staggered, from wherever the count currently is. */
+  function hopBatch(n) {
+    if (!hoppers) return;
+    // Measured off the panel rather than off the <svg>: the svg's own size
+    // depends on the viewBox this is about to set, so asking it first gets the
+    // replaced-element default back and lays out seven sheep a fifth of the
+    // size they should be. clientWidth rather than a rect, for the same reason
+    // sizeWindow() uses offsetWidth — a section arrives carrying a scale.
+    const W = tally.clientWidth, H = tally.clientHeight;
+    if (!W || !H) return;
+    hopsBox.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    // Fewer of them, bigger each — but none of them big. Whatever the count,
+    // the whole animal has to be inside the frame for the whole arc: he is
+    // turning end over end, so what has to fit is not his height but the
+    // diagonal he sweeps, and at the top of the jump that is measured from an
+    // apex already well above the middle.
+    const height = H * Math.max(0.105, Math.min(0.165, 0.175 - n * 0.008));
+    // Spread across the middle of the frame, tightening as the count grows so
+    // that seven still fit inside 70% of the width without touching.
+    const gap = n === 1 ? 0 : W * Math.min(0.16, 0.7 / (n - 1));
+    const stagger = Math.min(0.13, 0.85 / n);
+    const now = performance.now() / 1000;
+
+    const list = hoppers.list;
+    for (let i = 0; i < n && i < list.length; i++) {
+      const m = list[i];
+      m.height = height;
+      placeRest(m.rig, m.rest, { x: 0, y: 0, height });
+      m.at = now + i * stagger;
+      m.x0 = W / 2 + (i - (n - 1) / 2) * gap;
+      // Everything below is varied off the index rather than off a random, so
+      // the same count throws the same jump every time the section is reached
+      // and a presenter who has rehearsed it sees what they rehearsed.
+      const odd = i % 2 ? -1 : 1;
+      m.drift = odd * W * (0.012 + (i % 3) * 0.010);
+      // Clear of the bottom edge at both ends of the arc, over the middle at
+      // the top of it, and never the same twice in a row.
+      m.ground = H + height * 0.62;
+      m.rise = m.ground - H * (0.30 + (i % 3) * 0.045);
+      m.spin = odd * (360 + (i % 3) * 180);
+      m.pedal = 2.6 + (i % 3) * 0.5;    // limb cycles across the jump
+      m.phase0 = i * 0.37;
+      m.busy = true;
+    }
+    if (!hopRaf) hopRaf = requestAnimationFrame(hopFrame);
+  }
+
+  function hopFrame() {
+    hopRaf = 0;
+    if (!hoppers) return;
+    const now = performance.now() / 1000;
+    let live = false;
+    for (const m of hoppers.list) {
+      if (!m.busy) continue;
+      const u = (now - m.at) / HOP_DUR;
+      if (u < 0) { live = true; continue; }        // still waiting to launch
+      if (u >= 1) { m.busy = false; m.holder.style.display = 'none'; continue; }
+      live = true;
+      m.holder.style.display = '';
+      hoppers.gait.stride(m.rig, m.phase0 + u * m.pedal, {
+        swing: 42, bob: 0, lean: 0, rock: 0, armBase: m.armBase,
+      });
+      const x = m.x0 + m.drift * u;
+      const y = m.ground - m.rise * 4 * u * (1 - u);
+      // Turning about his middle rather than his feet: placeRest() leaves his
+      // feet on the holder's origin, and rotating there is a cartwheel.
+      m.holder.setAttribute('transform',
+        `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(m.spin * u).toFixed(1)} 0 ${(-m.height / 2).toFixed(1)})`);
+    }
+    if (live) hopRaf = requestAnimationFrame(hopFrame);
+  }
+
+  function hopsDone() {
+    cancelAnimationFrame(hopRaf);
+    hopRaf = 0;
+    if (!hoppers) return;
+    for (const m of hoppers.list) { m.busy = false; m.holder.style.display = 'none'; }
   }
 
   let gamesFrame = null;
@@ -1744,6 +1914,27 @@
   }
   liveCrest();
 
+  /**
+   * rig.place(), but measured against a box taken once rather than now.
+   *
+   * place() re-measures the rig on every call, which is right for a drawing
+   * that has never moved and wrong for every character on this deck: by the
+   * time any of them is placed a second time it is a lamb with both arms over
+   * his head, or a sheep halfway through a tumble. Measuring that gets you a
+   * scale set by the pose and a centre set by the pose. The rest box cannot
+   * change, so it is taken once, at load, and kept.
+   *
+   * Returns the scale, which is also what turns the rig's own units into the
+   * slide's — the callers need it to know how wide he ended up.
+   */
+  function placeRest(rig, b, { x, y, height }) {
+    const s = height / b.height;
+    rig.node.setAttribute('transform',
+      `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(5)}) `
+      + `translate(${(-(b.x + b.width / 2)).toFixed(2)} ${(-(b.y + b.height)).toFixed(2)})`);
+    return s;
+  }
+
   // ---- the chase across the poster --------------------------------------
   //
   // The reveal ends with the page lit and the rest of the room dark, and then
@@ -2064,17 +2255,9 @@
       m.height = w.h * m.hRatio;
       m.stride = m.height * m.strideRatio;
 
-      // rig.place(), but against the box the drawing had at rest instead of
-      // the one it has now. place() re-measures on every call, and by the end
-      // of this section the lamb is a lamb with both arms over his head and
-      // the wolf is mid-stride — so coming back to the section scaled each of
-      // them to the height of their own last pose and re-centred them on it.
-      // The rest box cannot change, so it is taken once and kept.
-      const b = m.rest, s = m.height / b.height;
-      m.rig.node.setAttribute('transform',
-        `translate(0 ${gy.toFixed(1)}) scale(${s.toFixed(5)}) `
-        + `translate(${(-(b.x + b.width / 2)).toFixed(2)} ${(-(b.y + b.height)).toFixed(2)})`);
-      // And his edges follow from it by arithmetic. Measuring them a second
+      const b = m.rest;
+      const s = placeRest(m.rig, b, { x: 0, y: gy, height: m.height });
+      // His edges follow from it by arithmetic. Measuring them a second
       // time off the live node was the other half of the same bug: that
       // measurement runs through the holder, so it came back carrying
       // whatever translate and squash the last frame of the last visit left.
