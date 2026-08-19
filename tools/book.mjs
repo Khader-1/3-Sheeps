@@ -144,12 +144,10 @@ body { font-family:'Poster Text', system-ui, sans-serif; }
             font-size:33px; line-height:1.42; }
 .bub p    { font-family:'Poster Text',sans-serif; font-weight:700;
             font-size:31px; line-height:1.34; }
-.cover    { text-align:center; }
+.cover    { text-align:center; justify-content:flex-start; }
 .cover h1 { font-family:'Poster Display',sans-serif; font-weight:800;
-            font-size:96px; line-height:1.12; color:var(--cream);
-            -webkit-text-stroke:9px var(--ink); paint-order:stroke fill; }
-.cover h2 { font-family:'Poster Text',sans-serif; font-weight:600;
-            font-size:34px; margin-top:20px; color:#fff; opacity:.92; }
+            font-size:112px; line-height:1.16; color:var(--cream);
+            -webkit-text-stroke:13px var(--ink); paint-order:stroke fill; }
 .moral p  { font-family:'Poster Display',sans-serif; font-weight:800;
             font-size:52px; line-height:1.3; color:var(--cream);
             -webkit-text-stroke:6px var(--ink); paint-order:stroke fill; }

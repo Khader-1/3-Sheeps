@@ -309,7 +309,20 @@ async function buildPage(spec) {
     // Scene, scaled up slightly when a page asks to push in.
     const world = svgEl('g');
     svg.appendChild(world);
-    world.appendChild(await loadScene(spec.scene));
+    const set = await loadScene(spec.scene);
+    world.appendChild(set);
+
+    // Sets are drawn for the scene they belong to, and a page may want the
+    // place without what happens in it — the cover wants the closing scene's
+    // valley with the brick house and its leftover bricks taken out of it, so
+    // that nothing gives the ending away on the front of the book.
+    for (const name of spec.hide || []) {
+      const el = [...set.querySelectorAll('g[id]')]
+        .find((g) => (g.getAttribute('id') || '').includes(name));
+      if (el) el.remove();
+      else console.warn(`hide: no group matching "${name}" in ${spec.scene}`);
+    }
+
     if (spec.zoom && spec.zoom !== 1) {
       const z = spec.zoom;
       world.setAttribute('transform',
@@ -360,13 +373,14 @@ async function buildPage(spec) {
   }
 
   if (spec.kind === 'cover') {
-    const band = svgEl('g');
-    band.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#120a02', opacity: 0.3 }));
-    band.appendChild(textBox({
-      x: 90, y: 56, w: W - 180, h: 250, cls: 'cover',
-      html: `<h1>${BOOK.title}</h1><h2>${BOOK.subtitle}</h2>`,
+    // No scrim under the title. It had one when the cover was a dim evening
+    // set and the type needed something to sit on; over an open valley in
+    // daylight the heavy dark outline carries the type on its own, and the
+    // wash only made the picture look overcast.
+    svg.appendChild(textBox({
+      x: 60, y: 24, w: W - 120, h: 330, cls: 'cover',
+      html: `<h1>${BOOK.coverLines.join('<br>')}</h1>`,
     }));
-    svg.appendChild(band);
   } else if (spec.kind === 'moral') {
     svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#120a02', opacity: 0.22 }));
     svg.appendChild(textBox({

@@ -25,6 +25,10 @@
 export const BOOK = {
   title: 'الخراف الثلاثة والذئب الماكر',
   subtitle: 'قصة مصوّرة للأطفال',
+  // Where the title breaks on the cover. Left to wrap on its own it splits
+  // after والذئب and drops الماكر onto a line by itself; the film's title card
+  // breaks it down the middle, subject and antagonist a line each.
+  coverLines: ['الخراف الثلاثة', 'والذئب الماكر'],
   width: 1280,
   height: 720,
 };
@@ -34,18 +38,26 @@ const GROUND = 668;
 export const PAGES = [
   // ---------------------------------------------------------------- cover
   // The one page with no delivered drawing, so it is still staged from the
-  // set and the rigs — which suits it: the cover wants all four characters
-  // together facing out, and no frame of the film has that.
+  // set and the rigs — and it is staged to match the film's title card: the
+  // open valley with the well, the three brothers huddled at the left and the
+  // wolf standing off at the right, watching them across the empty field.
+  //
+  // خلفيه كامله is the one set that is the valley and nothing else — same
+  // mountains, same grass, no building anywhere in it. Every other outdoor set
+  // has one of the three houses standing in it, and the front of a book should
+  // not show how the story ends.
+  //
+  // Draw order is smallest first so the eldest ends up in front of the huddle,
+  // the way he stands in the title card.
   {
     id: 'cover',
     kind: 'cover',
-    scene: 'خلفيه 1',
-    zoom: 1.05,
+    scene: 'خلفيه كامله',
     cast: [
-      { key: 'wolf', view: 'side', x: 1020, y: GROUND + 30, height: 470, flip: true, expr: 'menacing' },
-      { key: 'big', x: 430, y: GROUND + 12, height: 330, expr: 'determined' },
-      { key: 'mid', x: 215, y: GROUND + 12, height: 300, expr: 'afraid' },
-      { key: 'small', x: 630, y: GROUND + 12, height: 272, expr: 'afraid', restArms: true },
+      { key: 'small', x: 137, y: 694, height: 232, expr: 'afraid', restArms: true },
+      { key: 'mid', x: 198, y: 706, height: 282, expr: 'worried' },
+      { key: 'big', x: 312, y: 716, height: 348, expr: 'worried' },
+      { key: 'wolf', view: 'side', x: 1078, y: 716, height: 360, flip: true, expr: 'menacing' },
     ],
   },
 
