@@ -205,8 +205,8 @@
     0%, 26%   { translate: 0 0; }
     27%, 40%  { translate: -1.8px 0; }
     41%, 51%  { translate: 1.8px 0; }
-    52%, 64%  { translate: 2.3px 2.3px; }   /* on her: down, and to his right */
-    66%, 100% { translate: 0 0; }
+    52%, 60.6%{ translate: 2.3px 2.3px; }   /* on her: down, and to his right */
+    62%, 100% { translate: 0 0; }
   }
   @keyframes glance {
     0%, 30%   { translate: 0 0; }
@@ -256,15 +256,15 @@
               animation-timing-function: cubic-bezier(.35,0,.25,1); }
     60%     { translate: 30% 15%; scale: 1.10;
               animation-timing-function: ease-out; }
-    61.5%   { translate: 28% 14%; scale: 1.09;
+    60%     { translate: 28% 14%; scale: 1.09;
               animation-timing-function: linear; }
     /* He sees it coming. Two hundred milliseconds of nothing, and the whole
        reaction lives in that pause — a flinch with no beat in front of it is
        just more movement. Then he is gone before it arrives. He does not take
        the hit and get shoved; he gets out of the way of it. */
-    63%     { translate: 28% 14%; scale: 1.09;
-              animation-timing-function: cubic-bezier(.12,.75,.3,1); }
-    67%     { translate: -30% -42%; scale: .86;
+    60.8%   { translate: 28% 14%; scale: 1.09;
+              animation-timing-function: cubic-bezier(.16,.72,.35,1); }
+    65.5%   { translate: -30% -42%; scale: .86;
               animation-timing-function: cubic-bezier(.25,0,.3,1); }
     79%     { translate: -16% -22%; scale: .92;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
@@ -295,10 +295,12 @@
   @keyframes chargeBig {
     0%, 55% { translate: 0 0; scale: 1;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
-    63%     { translate: 0 7%; scale: .98;                  /* braces */
-              animation-timing-function: cubic-bezier(.4,0,.2,1); }
-    70%     { translate: 0 -52%; scale: 1.12;               /* and goes */
+    59.5%   { translate: 0 22%; scale: .95;                 /* drops low */
+              animation-timing-function: cubic-bezier(.3,0,.4,1); }
+    62.8%   { translate: 0 -16%; scale: 1.05;               /* and comes up */
               animation-timing-function: ease-out; }
+    70%     { translate: 0 -52%; scale: 1.12;
+              animation-timing-function: cubic-bezier(.4,0,.3,1); }
     82%     { translate: 0 -44%; scale: 1.10;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
     94%, 100% { translate: 0 0; scale: 1; }
@@ -347,7 +349,7 @@
   .crest .c-wolf .browR { transform: translateY(-16px) rotate(22deg); }
   @keyframes browPress {
     0%, 54%, 88%, 100% { translate: 0 0; }
-    59%, 64%           { translate: 0 2.8px; }
+    58%, 60.6%         { translate: 0 2.8px; }
   }
   /* Three reactions, not one. She is terrified, he is afraid, and the eldest
      is angry — which on a brow is the same axis in the other direction. */
