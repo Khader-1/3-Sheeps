@@ -385,7 +385,7 @@ async function buildPage(spec) {
     svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#120a02', opacity: 0.22 }));
     svg.appendChild(textBox({
       x: 120, y: H - 250, w: W - 240, h: 190, cls: 'moral',
-      html: `<p>${spec.text}</p>`,
+      html: `<p>${(spec.lines || [spec.text]).join('<br>')}</p>`,
     }));
   }
 

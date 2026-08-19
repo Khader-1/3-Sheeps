@@ -195,7 +195,13 @@ export const PAGES = [
   {
     id: 'p21',
     art: true,
-    text: 'وهربَ يعدو في الغابةِ بعيداً، ولم يعُد.',
+    text: 'هربَ الذئبُ إلى الغابةِ وذيلُهُ يحترق.',
+    // He is at the left of the frame facing out of it; the sky above him is
+    // the only clear space, and it puts the threat over his shoulder as he
+    // goes, which is how he means it.
+    bubbles: [
+      { x: 640, y: 40, w: 400, text: 'سأعودُ لألتهمَكم أيّتها الخرافُ الغبيّة!', tail: [330, 396] },
+    ],
   },
 
   // ----------------------------------------------------------------- end
@@ -203,6 +209,10 @@ export const PAGES = [
     id: 'end',
     kind: 'moral',
     art: true,
-    text: 'أتقِنْ عملَك… فالبيتُ المتينُ يحميكَ يوماً ما.',
+    text: 'نجتِ الخرافُ هذه المرّة… فهل سيعودُ الذئبُ ثانيةً؟',
+    // Broken by hand at the pause. Left to wrap, the closing display type
+    // fills one line and drops ثانيةً؟ onto a second on its own; split at the
+    // ellipsis it falls into two even lines, statement then question.
+    lines: ['نجتِ الخرافُ هذه المرّة…', 'فهل سيعودُ الذئبُ ثانيةً؟'],
   },
 ];
