@@ -348,9 +348,15 @@
   }
   .tally .w { position: relative; display: inline-block; }
   /* The rule is drawn, not typed: a struck-through glyph run in the font would
-     land the line wherever the font decided, and it has to sweep. */
+     land the line wherever the font decided, and it has to sweep.
+     Drawing it does mean placing it, and .52em — about where a strike sits on
+     Latin text — put it clean above the word rather than through it. Arabic
+     hangs its bodies well below the middle of the em box: measured across all
+     four readings the bowls run from .63em to .84em below the top of the box,
+     which is what .805em centres the rule in. Same to within half a pixel for
+     لعبة، لعبتان، حتى ثلاث ألعاب and سبع ألعاب, so one number does all four. */
   .tally .w.n::after {
-    content: ''; position: absolute; left: -.06em; right: -.06em; top: .52em;
+    content: ''; position: absolute; left: -.06em; right: -.06em; top: .805em;
     height: .08em; border-radius: .04em; background: #ffd23f;
     transform: scaleX(0); transform-origin: right center;
   }
@@ -691,7 +697,7 @@
   /** Open only when the presenter asked for it, not mid-move. */
   const overHeld = () => over.classList.contains('on') && !moving;
 
-  document.addEventListener('keydown', (e) => {
+  function onKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     // The count is a flourish, never a wait.
     if (tally.classList.contains('on')) { countDone(); return; }
@@ -742,7 +748,36 @@
         else return;
     }
     e.preventDefault();
-  });
+  }
+  document.addEventListener('keydown', onKey);
+
+  /**
+   * Give the deck its keys back while an embedded app has the focus.
+   *
+   * The games and the book are iframes, and a keydown inside one is delivered
+   * to that document and stops there — events do not cross a document
+   * boundary. So the moment the presenter clicks into the games, every deck
+   * key dies at the frame: no arrows, no Escape, no way to reach the film
+   * except the mouse.
+   *
+   * Which keys belong to the app is not something this side should be
+   * guessing. The carousel takes ← →, Enter and Space; the running game also
+   * takes ↑ to jump — and the next game will take something else again. So
+   * ask instead of listing: hand the event on after dispatch has finished and
+   * relay only what nothing inside called preventDefault on. A key the app
+   * uses stays with the app, a key it ignores drives the deck, and neither
+   * side has to know about the other.
+   *
+   * The deferral is the whole trick — defaultPrevented is only settled once
+   * every listener has run, and the app's are registered after this one.
+   */
+  function relayKeys(frame) {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    doc.addEventListener('keydown', (e) => {
+      setTimeout(() => { if (!e.defaultPrevented) onKey(e); }, 0);
+    });
+  }
 
   // Touch, for running it off a tablet.
   let tx = 0, ty = 0;
@@ -862,6 +897,7 @@
     // a server says so, and the deck is also opened straight off the disk.
     gamesFrame.src = './index.html?embed=1';
     gamesFrame.allow = 'autoplay; fullscreen';
+    gamesFrame.addEventListener('load', () => relayKeys(gamesFrame));
     document.getElementById('games-holder').appendChild(gamesFrame);
   }
   document.getElementById('games-open').addEventListener('click', () => window.open('./index.html', '_blank'));
@@ -925,6 +961,10 @@
           to  {transform:rotateY(0deg);   filter:brightness(1)}
         }`;
       doc.head.appendChild(css);
+      // Same trap as the games: clicking the book to look at a page would
+      // otherwise take the arrows away from it. Nothing inside the book
+      // handles a key, so everything relays.
+      relayKeys(bookFrame);
       bookPages = [...doc.querySelectorAll('.sheet')];
       bookAt = 0;
       showBookPage();

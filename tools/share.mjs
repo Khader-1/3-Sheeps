@@ -12,15 +12,25 @@
 // USB round trip is worth; a drag-and-drop page on the same LAN server hands
 // them straight to the machine that has to encode them.
 //
-// Uploads may only land in assets/incoming/ — the one directory that holds
-// delivered source material — and the name is stripped to its last component,
-// so nothing a client sends can write anywhere else in the tree.
+// The video goes into slots, not files. A slot is a fixed place — الفيلم,
+// إعلان ١, إعلان ٢ — and dropping on one replaces what is there whatever the
+// dropped file happens to be called. Cuts arrive over and over under names
+// like final2 and آخر نسخة; taking the name from the file would leave the site
+// showing whichever one sorted first and a pile of dead copies behind it. The
+// encode runs by itself the moment an upload lands, so out/ is current without
+// anyone having to remember a command.
+//
+// Anything else can still be dropped loose, and lands under its own name.
+// Either way uploads may only reach assets/incoming/ — the one directory that
+// holds delivered source material — and the name is stripped to its last
+// component, so nothing a client sends can write anywhere else in the tree.
 
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SLOTS, slotById, slotState, encodeSlot } from './video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.argv[2]) || 8787;
