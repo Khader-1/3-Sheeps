@@ -852,6 +852,21 @@
      set smaller and on one column — a full sentence at name size reads as
      shouting. */
   .roll .card.block .name { font-size: clamp(16px, 2.5vmin, 34px); line-height: 1.75; }
+  /* The two production logos close the roll, one after the other, the way a
+     film ends on them. Given room — they are the last thing anybody sees. */
+  .roll .card.logo img {
+    height: clamp(90px, 26vh, 260px); width: auto; display: block;
+    filter: drop-shadow(0 .06em .5em rgba(0,0,0,.7));
+  }
+
+  /* And then the lights go out. Over everything, including the overview, so
+     the section change underneath it is never seen — the deck comes back up
+     on the title as if it had started again. */
+  .blackout {
+    position: fixed; inset: 0; background: #000; z-index: 9999;
+    opacity: 0; pointer-events: none; transition: opacity var(--t, 2.6s) ease;
+  }
+  .blackout.on { opacity: 1; }
 
   /* ---- and the drawings behind it -------------------------------------
      Three sheets from the making of the film, one per lap of the chase and
@@ -897,7 +912,7 @@
      drift is the one thing on this deck that actually is a vestibular
      trigger, which is why the poster backdrop is already treated this way,
      and hiding the artwork would be answering a different complaint. */
-  .outroart .sheet.on.drift { animation: artDrift 27s linear both; }
+  .outroart .sheet.on.drift { animation: artDrift 11s linear both; }
   @keyframes artDrift {
     from { transform: translate(var(--dx0, 0px), var(--dy0, 0px)); }
     to   { transform: translate(var(--dx1, 0px), var(--dy1, 0px)); }
@@ -1207,6 +1222,7 @@
   </section>
 </div>
 
+<i class="blackout" id="blackout"></i>
 <div class="count" id="count">١ / ٧</div>
 <nav class="rail" id="rail"></nav>
 <div class="hint" id="hint">
@@ -2748,14 +2764,17 @@
       faces: { wolf: 'terrified', sheep: 'determined' } },
   ];
   const RUN_CYCLE = RUN_PASSES.reduce((a, p) => a + p.dur + RUN_GAP, 0);
-  // And then they stay off for two minutes. Three crossings every fifteen
-  // seconds for as long as the section is up is not a running gag, it is
-  // wallpaper — the joke is worth telling twice in a talk, not twenty times.
-  // The quiet is also what the sheets are for.
-  const RUN_REST = 120;
+  // And then they stay off for the better part of a minute. Three crossings
+  // every fifteen seconds for as long as the section is up is not a running
+  // gag, it is wallpaper. The quiet is also what the sheets are for.
+  //
+  // Long enough that it never comes back round: the titles run once and the
+  // section ends itself at about seventy-three seconds, which is inside one
+  // rest. The chase gets its three crossings at the top and that is all.
+  const RUN_REST = 90;
   const RUN_TOTAL = RUN_CYCLE + RUN_REST;
-  const ART_LEAD = 4;        // s into the rest before the first sheet
-  const ART_HOLD = 27;       // and how long each one holds
+  const ART_LEAD = 3;        // s into the rest before the first sheet
+  const ART_HOLD = 10;       // and how long each one holds
 
   const runBox = document.getElementById('runstrip');
   let runners = null, runRaf = 0, runWarm = null, runT0 = 0;
@@ -2865,25 +2884,44 @@
      ['الرسوم الأولية (سكتشات)', 'فايز الحسنات\nمحمد الزيتي']],
     [['بناء الهيكل العظمي', 'طارق نصار'], ['تنفيذ التحريك', 'طارق نصار']],
     [['المونتاج والمؤثرات الصوتية', 'أحمد محمد خضير']],
-    // The two advisory roles share a card, which is what they have in common —
-    // and puts تحت إشراف on the right, where the senior of the two belongs in
-    // a row that reads right to left.
-    [['تحت إشراف', 'المهندسة منال حجازي'],
-     ['مرشد البرمجة والتطوير', 'م. خضر محمد خضير']],
+    [['تحت إشراف', 'المهندسة منال حجازي']],
     [[null, 'كلية فلسطين التقنية — دير البلح\nقسم الحاسوب\nتخصص الوسائط المتعددة والرسوم المتحركة']],
     [[null, 'مشروع تخرج مقدَّم استكمالاً لمتطلبات الحصول على درجة الدبلوم\nفي تخصص الوسائط المتعددة والرسوم المتحركة']],
   ];
   const THANKS_OUT = 4.2;    // s: the length of the first pass, and a beat
   const CREDITS_AT = 5.9;    // and then the titles have the slide
-  const CARD_HOLD = 5.6;     // each one up, including its two fades
+  const CARD_HOLD = 8.0;     // each one up, including its two fades
+  const LOGO_HOLD = 5.5;     // and the two logos that close it
+  // Fade down, sit in the dark a moment, then come up on the title again.
+  const END_FADE = 2.6, END_BLACK = 1.0, END_UP = 3.4;
+  // The titles, then the college, then the house that made it. Each card
+  // carries how long it holds, so the logos can sit for less than a credit
+  // does without a second schedule to keep in step.
+  const ROLL = [
+    ...CREDITS.map((entries) => ({ entries, hold: CARD_HOLD })),
+    { logo: 'assets/logos/ptc.png', hold: LOGO_HOLD },
+    { logo: 'assets/logos/pixel-media.png', hold: LOGO_HOLD },
+  ];
+  const ROLL_ENDS = ROLL.reduce((a, c) => [...a, (a[a.length - 1] || 0) + c.hold], []);
   const rollBox = document.getElementById('roll');
   const thanksEl = document.getElementById('thanks');
-  let rollCards = null, rollAt = -1;
+  const blackout = document.getElementById('blackout');
+  let rollCards = null, rollAt = -1, ending = false;
 
   function buildRoll() {
     if (rollCards) return rollCards;
-    rollCards = CREDITS.map((entries) => {
+    rollCards = ROLL.map((spec) => {
       const card = document.createElement('div');
+      if (spec.logo) {
+        card.className = 'card logo';
+        const img = document.createElement('img');
+        img.src = spec.logo;
+        img.alt = '';
+        card.appendChild(img);
+        rollBox.appendChild(card);
+        return card;
+      }
+      const entries = spec.entries;
       card.className = 'card' + (entries[0][0] === null ? ' block' : '');
       for (const [role, name] of entries) {
         const e = document.createElement('div');
@@ -2909,6 +2947,27 @@
       return card;
     });
     return rollCards;
+  }
+
+  /**
+   * Out on the last logo, a beat in the dark, and up again on the title.
+   *
+   * land() rather than go(), because go() runs the overview curtain and the
+   * whole point is that nothing is seen happening: the deck is already black
+   * when the section changes underneath. Guarded on the section still being
+   * up, so walking away mid-fade does not drag the room back to slide one.
+   */
+  function endCredits() {
+    if (ending) return;
+    ending = true;
+    blackout.style.setProperty('--t', END_FADE + 's');
+    blackout.classList.add('on');
+    setTimeout(() => {
+      if (!document.getElementById('s-end').classList.contains('on')) return;
+      land(0);
+      blackout.style.setProperty('--t', END_UP + 's');
+      requestAnimationFrame(() => blackout.classList.remove('on'));
+    }, (END_FADE + END_BLACK) * 1000);
   }
 
   /** Bring card `i` up and take the rest down. -1 for none. */
@@ -3143,6 +3202,9 @@
     artShown = -1;
     showCard(-1);
     thanksEl.classList.remove('gone');
+    ending = false;
+    blackout.style.setProperty('--t', '0s');
+    blackout.classList.remove('on');
     if (!runners) return;
     runners.pass = undefined;
     for (const m of Object.values(runners.by)) {
@@ -3179,10 +3241,22 @@
     // The thanks, the moral and the house have the slide for the length of
     // the first crossing, and then they go: from there on this is the credits.
     thanksEl.classList.toggle('gone', elapsed > THANKS_OUT);
-    // Which come one card at a time and keep coming, round and round, because
-    // there is no telling how long the room will be on this slide.
-    showCard(elapsed < CREDITS_AT ? -1
-      : Math.floor((elapsed - CREDITS_AT) / CARD_HOLD) % CREDITS.length);
+    // Which come one card at a time, once through, and end on the two logos.
+    // Not on a loop any more: it finishes, the lights go out, and the deck
+    // comes back up on the title — so the section has an ending rather than
+    // sitting there cycling at a room that has already been thanked.
+    const rt = elapsed - CREDITS_AT;
+    if (rt < 0) {
+      showCard(-1);
+    } else {
+      const i = ROLL_ENDS.findIndex((e) => rt < e);
+      if (i >= 0) {
+        showCard(i);
+      } else {
+        showCard(ROLL.length - 1);   // hold the last logo through the fade
+        endCredits();
+      }
+    }
 
     // The chase runs its three crossings and then rests for two minutes. The
     // sheets fill that rest — one at a time, in turn — and are gone again
