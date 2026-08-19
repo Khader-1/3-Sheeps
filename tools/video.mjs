@@ -15,11 +15,19 @@
 // trailers to a fifth of their delivered size with no difference visible at
 // full screen.
 //
-// CRF alone cannot promise a size, though, and the film is minutes rather than
-// seconds. So: encode at CRF 20 first, and if the result is over the cap,
-// throw it away and encode again in two passes at whatever bitrate does fit.
-// Quality then follows from the running time, which is the only honest way
-// round when the ceiling is fixed and the duration is not.
+// CRF alone cannot promise a size, though. For a 27-second trailer that is
+// fine — CRF 20 lands at 6 MB and there is nothing to decide. For the film it
+// is not: 651 seconds inside 23 MiB is 296 kbps for 720p, which is not a
+// quality tradeoff, it is a ruined picture.
+//
+// So the film is not one file. It is cut into six-second segments with an HLS
+// playlist over them, and the cap stops being a problem — 67 MB of good
+// encode becomes ~110 pieces of about 600 KB. The player fetches the playlist,
+// then the first segment, and starts; it never waits on the whole film. That
+// is also the fastest possible start, which is the other thing wanted here.
+//
+// Anything short enough to fit stays a single progressive file. There is no
+// reason to make a browser parse a playlist for a 6 MB trailer.
 //
 // Each entry in SLOTS is a fixed place, not a filename. A new cut of the film
 // replaces the film; it never becomes a second film. tools/share.mjs uploads
@@ -37,10 +45,22 @@ const CAP = 23 * 1048576;
 const CRF = '20';
 const AUDIO_KBPS = 192;
 
+/** Segment length. Six seconds is the usual HLS compromise: short enough that
+ *  playback starts almost at once, long enough that the segments still encode
+ *  efficiently and the playlist stays small. */
+const SEG = 6;
+
 export const SLOTS = [
   { id: 'promo-1', label: 'إعلان ١', src: 'assets/incoming/إعلانات/1.mp4', out: 'out/promo-1.mp4' },
   { id: 'promo-2', label: 'إعلان ٢', src: 'assets/incoming/إعلانات/2.mp4', out: 'out/promo-2.mp4' },
-  { id: 'film', label: 'الفيلم الكامل', src: 'assets/incoming/فيلم/الفيلم.mp4', out: 'out/film.mp4' },
+  // The film is eleven minutes; it streams. CRF 22 with x264's animation
+  // tuning — the deblocking that flat cel art wants, and it keeps the frames
+  // that matter — puts the whole thing at about 67 MB.
+  {
+    id: 'film', label: 'الفيلم الكامل',
+    src: 'assets/incoming/فيلم/الفيلم.mp4',
+    out: 'out/film/film.m3u8', hls: true, crf: '22', tune: 'animation', audioKbps: 128,
+  },
 ];
 
 export const slotById = (id) => SLOTS.find((s) => s.id === id);
@@ -93,6 +113,38 @@ export function encodeSlot(slot, { force = false, log = () => {} } = {}) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const run = (args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...args], { cwd: ROOT });
 
+  if (slot.hls) {
+    const dir = path.dirname(out);
+    // Start clean: a shorter cut than last time would otherwise leave the tail
+    // of the old one lying next to the new playlist.
+    for (const f of fs.readdirSync(dir)) {
+      if (/\.(m4s|ts|mp4|m3u8)$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
+    }
+    log(`${slot.id}: encoding at CRF ${slot.crf} (${slot.tune}) into ${SEG}s segments`);
+    run(['-i', src,
+      ...x264(['-crf', slot.crf ?? CRF, ...(slot.tune ? ['-tune', slot.tune] : [])]),
+      // A segment can only start on a keyframe, so put one exactly on every
+      // boundary. Without this ffmpeg keeps its own GOP structure and the
+      // segments come out ragged and longer than asked for.
+      '-force_key_frames', `expr:gte(t,n_forced*${SEG})`,
+      '-c:a', 'aac', '-b:a', `${slot.audioKbps ?? AUDIO_KBPS}k`,
+      '-f', 'hls', '-hls_time', String(SEG), '-hls_playlist_type', 'vod',
+      // fMP4 rather than MPEG-TS: no 188-byte packet padding, so the segments
+      // are a few percent smaller for the same picture.
+      '-hls_segment_type', 'fmp4',
+      '-hls_fmp4_init_filename', 'init.mp4',
+      '-hls_segment_filename', path.join(dir, 'seg%04d.m4s'),
+      '-hls_flags', 'independent_segments',
+      out]);
+
+    const parts = fs.readdirSync(dir).filter((f) => f.endsWith('.m4s'));
+    const bytes = fs.readdirSync(dir)
+      .reduce((n, f) => n + fs.statSync(path.join(dir, f)).size, 0);
+    const biggest = Math.max(...parts.map((f) => fs.statSync(path.join(dir, f)).size));
+    if (biggest > CAP) throw new Error(`${slot.id}: a segment is ${(biggest / 1048576).toFixed(1)} MB, over the cap`);
+    return { id: slot.id, out: slot.out, bytes, segments: parts.length, biggest, seconds: duration(src) };
+  }
+
   log(`${slot.id}: encoding at CRF ${CRF}`);
   run(['-i', src, ...x264(['-crf', CRF]), '-c:a', 'aac', '-b:a', `${AUDIO_KBPS}k`, out]);
 
@@ -139,7 +191,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const done = buildVideo({ force: args.includes('--force'), only, log: (m) => console.log('  ' + m) });
   if (!done.length) console.log('video  nothing to do');
   for (const r of done) {
-    console.log(`video  ${r.out}  (${(r.bytes / 1048576).toFixed(1)} MB, ${r.seconds.toFixed(0)}s` +
-                `${r.capped ? ', rate-capped to fit' : ''})`);
+    const size = `${(r.bytes / 1048576).toFixed(1)} MB, ${r.seconds.toFixed(0)}s`;
+    console.log(r.segments
+      ? `video  ${r.out}  (${size}, ${r.segments} segments, largest ${(r.biggest / 1048576).toFixed(1)} MB)`
+      : `video  ${r.out}  (${size}${r.capped ? ', rate-capped to fit' : ''})`);
   }
 }

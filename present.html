@@ -303,9 +303,60 @@
   .slide.full.bare > .head,
   .slide.full.bare > .foot,
   .slide.full.bare .paneBar { opacity: 0; visibility: hidden; }
-  /* A <video controls> puts its own bar along the bottom, and the caption
-     lands on top of the volume button. Lift it clear — only where there is a
-     video to be clear of. */
+  /* The deck's own control bar, in place of the browser's. The native one is
+     the one piece of chrome in the whole presentation that belongs to Chrome
+     rather than to the film: grey, LTR, and with a scrub handle that fills
+     blue. This is the poster's palette — cream on ink with a gold fill — and
+     it reads right to left, which is also the direction the film's own time
+     runs for the room watching it. */
+  .vbar {
+    position: absolute; inset: auto 0 0 0; z-index: 6; direction: rtl;
+    display: grid; grid-template-columns: auto auto 1fr auto auto;
+    align-items: center; gap: clamp(8px, 1.2vmin, 18px);
+    padding: clamp(10px, 1.6vmin, 22px) clamp(12px, 2.2vmin, 30px);
+    background: linear-gradient(transparent, rgba(6, 10, 4, .58) 38%, rgba(6, 10, 4, .93));
+    opacity: 0; visibility: hidden; transition: opacity .3s ease, visibility .3s;
+  }
+  .vbar.show { opacity: 1; visibility: visible; }
+  .vbtn {
+    appearance: none; border: 0; background: none; cursor: pointer; padding: 0;
+    width: clamp(30px, 3.6vmin, 48px); aspect-ratio: 1; display: grid; place-items: center;
+    color: var(--paper); opacity: .9; transition: opacity .16s, transform .16s;
+  }
+  .vbtn:hover { opacity: 1; transform: scale(1.09); }
+  .vbtn svg { width: 62%; height: 62%; fill: currentColor; }
+  .vtime {
+    font-size: clamp(12px, 1.5vmin, 19px); font-weight: 700; color: var(--muted);
+    font-variant-numeric: tabular-nums; direction: ltr; min-width: 4.6em; text-align: center;
+  }
+  /* The track is a plain div, not <input type=range>: a range's fill cannot be
+     styled either side of the thumb without one vendor pseudo-element per
+     engine, and all this needs is two bars and a dot. */
+  .vtrack {
+    position: relative; height: clamp(5px, .7vmin, 9px); border-radius: 99px; cursor: pointer;
+    background: rgba(255, 246, 220, .22);
+  }
+  /* Loaded-but-not-played, so a long film shows the buffer running ahead. */
+  .vtrack .buf, .vtrack .fill {
+    position: absolute; inset: 0 auto 0 0; border-radius: 99px; width: 0;
+    transform-origin: right center;
+  }
+  .vtrack .buf { background: rgba(255, 246, 220, .2); }
+  .vtrack .fill { background: var(--gold); }
+  .vtrack .dot {
+    position: absolute; top: 50%; right: 0; width: clamp(13px, 1.7vmin, 21px); aspect-ratio: 1;
+    border-radius: 50%; background: var(--gold); transform: translate(50%, -50%);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, .55); pointer-events: none;
+  }
+  /* RTL: time runs from the right edge leftwards, so the fill is anchored
+     right and the dot rides its leading (left) edge. */
+  .vtrack .buf, .vtrack .fill { inset: 0 0 0 auto; }
+  .vtrack .dot { right: auto; left: 0; transform: translate(-50%, -50%); }
+  .vwrap { position: relative; display: grid; }
+  .vwrap > video { grid-area: 1 / 1; }
+  .slide.full .vwrap { width: 100%; height: 100%; }
+
+  /* The caption sits above the bar rather than under it. */
   .slide.full:has(video) > .foot { bottom: calc(var(--pad) + 3em); }
   /* The deck's own furniture goes with them. Half a screen of film with a
      page counter still sitting on it is not full-bleed. */
@@ -476,13 +527,14 @@
   <section class="slide full" id="s-film" data-title="الفيلم" data-name="الفيلم">
     <div class="head">
       <div class="kicker">٠٣ — الفيلم</div>
-      <h2>الفيلم <span class="badge wip">قيد الإنتاج</span></h2>
+      <h2>الفيلم</h2>
     </div>
     <div class="stage">
-      <video id="v-film" src="out/promo-narrated.mp4" preload="none" playsinline controls></video>
+      <video id="v-film" preload="none" playsinline
+             data-hls="out/film/film.m3u8" data-fallback="out/promo-narrated.mp4"></video>
       <div class="tap" data-for="v-film"><span>▶</span></div>
     </div>
-    <div class="foot"><span>تُعرض النسخة المعلَّق عليها من الإعلان ريثما يكتمل الفيلم</span></div>
+    <div class="foot"><span>١٠:٥١ دقيقة · يبدأ العرض فوراً ويُحمَّل أثناء التشغيل</span></div>
   </section>
   <!-- 5 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
@@ -823,6 +875,7 @@
   // created the first time its section is reached and then kept.
   function onEnter(s) {
     if (s.id === 's-games') { mountGames(); countUp(); }
+    if (s.id === 's-film') mountFilm();
     if (s.id === 's-book') mountBook();
     chrome(s, true);
   }
@@ -1035,6 +1088,160 @@
     v.addEventListener('play', () => tap.classList.add('gone'));
     v.addEventListener('pause', () => tap.classList.remove('gone'));
     v.addEventListener('ended', () => tap.classList.remove('gone'));
+  }
+
+  // ---- the player ------------------------------------------------------
+  // The browser's own control bar is the one piece of furniture in the deck
+  // that was never designed for it — grey, left-to-right, blue scrubber. This
+  // replaces it with the poster's colours and the deck's reading direction.
+  //
+  // It appears with the rest of the chrome and goes with it, so a film playing
+  // is a film and nothing else; a mouse move brings it back.
+  const ICON = {
+    play: 'M8 5v14l11-7z',
+    pause: 'M6 5h4v14H6zm8 0h4v14h-4z',
+    replay: 'M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z',
+    loud: 'M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z',
+    mute: 'M3 9v6h4l5 5V4L7 9H3zm18.5-1.9L20.1 5.7 17 8.8l-3.1-3.1-1.4 1.4 3.1 3.1-3.1 3.1 1.4 1.4 3.1-3.1 3.1 3.1 1.4-1.4-3.1-3.1z',
+    full: 'M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z',
+  };
+  const svgIcon = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const clock = (s) => {
+    if (!isFinite(s)) return '--:--';
+    const m = Math.floor(s / 60);
+    return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  };
+
+  function dressPlayer(v) {
+    v.removeAttribute('controls');
+    const wrap = document.createElement('div');
+    wrap.className = 'vwrap';
+    v.parentNode.insertBefore(wrap, v);
+    wrap.appendChild(v);
+    // The tap-to-play sheet belongs over the video, inside the same box.
+    const tap = v.parentElement.parentElement.querySelector(`.tap[data-for="${v.id}"]`);
+    if (tap) wrap.appendChild(tap);
+
+    const bar = document.createElement('div');
+    bar.className = 'vbar';
+    bar.innerHTML =
+      `<button class="vbtn play" type="button" aria-label="تشغيل">${svgIcon(ICON.play)}</button>` +
+      `<button class="vbtn vol" type="button" aria-label="كتم">${svgIcon(ICON.loud)}</button>` +
+      `<div class="vtrack"><i class="buf"></i><i class="fill"></i><i class="dot"></i></div>` +
+      `<span class="vtime">0:00 / --:--</span>` +
+      `<button class="vbtn fs" type="button" aria-label="ملء الشاشة">${svgIcon(ICON.full)}</button>`;
+    wrap.appendChild(bar);
+
+    const q = (s) => bar.querySelector(s);
+    const [play, vol, fs] = [q('.play'), q('.vol'), q('.fs')];
+    const [track, buf, fill, dot, time] = ['.vtrack', '.buf', '.fill', '.dot', '.vtime'].map(q);
+
+    const paint = () => {
+      const d = v.duration;
+      const p = d ? Math.min(1, v.currentTime / d) : 0;
+      fill.style.width = dot.style.left = '';
+      fill.style.width = `${p * 100}%`;
+      dot.style.left = `${(1 - p) * 100}%`;
+      time.textContent = `${clock(v.currentTime)} / ${clock(d)}`;
+      if (v.buffered.length && d) {
+        buf.style.width = `${Math.min(1, v.buffered.end(v.buffered.length - 1) / d) * 100}%`;
+      }
+    };
+    const icon = () => {
+      play.innerHTML = svgIcon(v.ended ? ICON.replay : v.paused ? ICON.play : ICON.pause);
+      play.setAttribute('aria-label', v.paused ? 'تشغيل' : 'إيقاف');
+      vol.innerHTML = svgIcon(v.muted ? ICON.mute : ICON.loud);
+    };
+
+    play.addEventListener('click', () => (v.paused || v.ended ? v.play() : v.pause()));
+    vol.addEventListener('click', () => { v.muted = !v.muted; icon(); });
+    fs.addEventListener('click', () => {
+      const box = v.closest('.slide') || wrap;
+      document.fullscreenElement ? document.exitFullscreen() : box.requestFullscreen?.();
+    });
+
+    // Scrub. Pointer capture so a drag that leaves the bar keeps scrubbing,
+    // and RTL means the far right of the track is zero.
+    const seekTo = (e) => {
+      const r = track.getBoundingClientRect();
+      const p = 1 - (e.clientX - r.left) / r.width;
+      if (v.duration) v.currentTime = Math.max(0, Math.min(1, p)) * v.duration;
+    };
+    let scrubbing = false;
+    track.addEventListener('pointerdown', (e) => {
+      scrubbing = true; track.setPointerCapture(e.pointerId); seekTo(e); paint();
+    });
+    track.addEventListener('pointermove', (e) => { if (scrubbing) { seekTo(e); paint(); } });
+    track.addEventListener('pointerup', (e) => { scrubbing = false; track.releasePointerCapture(e.pointerId); });
+
+    for (const ev of ['timeupdate', 'progress', 'loadedmetadata', 'durationchange']) {
+      v.addEventListener(ev, paint);
+    }
+    for (const ev of ['play', 'pause', 'ended', 'volumechange']) v.addEventListener(ev, icon);
+    icon(); paint();
+
+    // The bar does NOT ride with the deck's chrome. The titles and captions
+    // are told to stay away while a film is playing and they should — but a
+    // control bar that can never be reached mid-film is not a control bar.
+    // So it behaves the way a player's does: up whenever the film is not
+    // running, and up for a moment when the mouse moves over it.
+    let hideTimer = 0;
+    const show = (on) => bar.classList.toggle('show', on);
+    const wake = () => {
+      show(true);
+      clearTimeout(hideTimer);
+      if (!v.paused && !v.ended) hideTimer = setTimeout(() => show(false), 2400);
+    };
+    wrap.addEventListener('pointermove', wake);
+    wrap.addEventListener('pointerdown', wake);
+    bar.addEventListener('pointerenter', () => { clearTimeout(hideTimer); show(true); });
+    for (const ev of ['pause', 'ended', 'loadedmetadata']) v.addEventListener(ev, wake);
+    v.addEventListener('play', wake);
+    wake();
+  }
+  for (const v of document.querySelectorAll('.stage video')) dressPlayer(v);
+
+  // ---- the film, as a stream -------------------------------------------
+  // Eleven minutes at a quality worth showing is 69 MB, and Cloudflare Pages
+  // refuses any file over 25 MiB — so the film is cut into six-second pieces
+  // with a playlist over them. The player fetches the playlist and the first
+  // piece and starts; it never waits on the whole film, which is also the
+  // fastest start available.
+  //
+  // Safari plays a playlist natively. Everything else needs hls.js, which is
+  // loaded only when this section is first opened — 376 KB that a run through
+  // the deck that never reaches the film should not pay for.
+  const film = document.getElementById('v-film');
+  let filmReady = false;
+  function mountFilm() {
+    if (filmReady) return;
+    filmReady = true;
+    const src = film.dataset.hls;
+    if (film.canPlayType('application/vnd.apple.mpegurl')) {
+      film.src = src;
+      // Some browsers answer "maybe" to that question and then cannot in fact
+      // play the playlist. One error is all the warning there is, so take it
+      // and come back through the library.
+      film.addEventListener('error', () => { filmReady = false; film.removeAttribute('src'); withHls(); },
+        { once: true });
+      return;
+    }
+    withHls();
+  }
+  function withHls() {
+    const src = film.dataset.hls;
+    const s = document.createElement('script');
+    s.src = 'web/vendor/hls.light.min.js';
+    s.onload = () => {
+      if (!window.Hls?.isSupported()) { film.src = film.dataset.fallback; return; }
+      const hls = new Hls({ maxBufferLength: 40 });
+      hls.loadSource(src);
+      hls.attachMedia(film);
+    };
+    // No player and no network for one: fall back to the trailer that is
+    // already on the page rather than leaving a dead frame.
+    s.onerror = () => { film.src = film.dataset.fallback; };
+    document.head.appendChild(s);
   }
 
   // ---- go --------------------------------------------------------------

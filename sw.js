@@ -8,7 +8,7 @@
 // against the server root: on GitHub Pages the site is published under
 // /<repo>/, and a leading slash would send every request to the wrong origin
 // path. sw.js sits at the site root, so its own URL is the correct base.
-const CACHE = 'vmsymglb5';
+const CACHE = 'vmt08dbsb';
 const HERE = (p) => new URL(p, self.location).toString();
 const ASSETS = [
  "index.html",
@@ -34,6 +34,7 @@ const ASSETS = [
  "src/game/house.js",
  "src/game/install.js",
  "src/game/menu.js",
+ "src/game/previews.js",
  "src/game/rebuild.js",
  "src/game/run.js",
  "src/game/ui.js",
@@ -57,17 +58,18 @@ const ASSETS = [
  "assets/fonts/Cairo-600.woff2",
  "assets/fonts/Cairo-700.woff2",
  "assets/fonts/embed.css",
- "assets/audio/sfx/breath.wav",
- "assets/audio/sfx/chirp.wav",
- "assets/audio/sfx/forest.wav",
- "assets/audio/sfx/growl.wav",
- "assets/audio/sfx/impact.wav",
- "assets/audio/sfx/knock.wav",
- "assets/audio/sfx/step-grass.wav",
- "assets/audio/sfx/step-wolf.wav",
- "assets/audio/sfx/whoosh.wav",
- "assets/audio/sfx/wolf-cry.wav",
- "assets/audio/sfx/wolf-laugh.wav",
+ "assets/audio/sfx/breath.mp3",
+ "assets/audio/sfx/chirp.mp3",
+ "assets/audio/sfx/forest.mp3",
+ "assets/audio/sfx/growl.mp3",
+ "assets/audio/sfx/impact.mp3",
+ "assets/audio/sfx/knock.mp3",
+ "assets/audio/sfx/page-flip.mp3",
+ "assets/audio/sfx/step-grass.mp3",
+ "assets/audio/sfx/step-wolf.mp3",
+ "assets/audio/sfx/whoosh.mp3",
+ "assets/audio/sfx/wolf-cry.mp3",
+ "assets/audio/sfx/wolf-laugh.mp3",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF8.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D9%85%D8%B4%D9%87%D8%AF17%D9%8818.svg",
  "assets/incoming/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA/%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA%20svg/%D8%B7%D9%88%D9%8A%D9%84%D9%87%20%D8%A8%D9%8A%D8%AA.svg",

@@ -18,3 +18,8 @@ venv/
 
 # Assembled by tools/site.mjs for deployment.
 dist/
+
+# The delivered film master, 412 MB. tools/video.mjs encodes it to out/film/
+# and the site ships only that; GitHub blocks files this size anyway, and it
+# would sit in the history of a public repo forever.
+assets/incoming/فيلم/

@@ -23,7 +23,16 @@ const DIST = path.join(ROOT, 'dist');
 
 /** Tracked, but source material rather than site content. */
 const EXCLUDE = [
-  /\/موهو\//,           // Moho project files, both the scene and character sets
+  // Moho project files, both the scene and character sets. Matched on the
+  // extension, not the folder: the folders are «خلفيات موهو» and «شخصيات موهو»,
+  // so a rule looking for a path segment of exactly موهو matched neither, and
+  // 20 MB of editable project files were going out with every deploy.
+  /\.moho$/,
+  // The generated sound effects, kept as WAV in the repo because that is what
+  // tools/gen-sfx.mjs writes and what it re-reads to normalise. The site takes
+  // the MP3s beside them instead — 5 MB of PCM against 300 KB, and PCM is the
+  // one thing on the site brotli cannot help with.
+  /^assets\/audio\/sfx\/.*\.wav$/,
   /^assets\/script\.docx$/,
   /^assets\/svg\//,      // empty staging directory
   // The poster exports. Only tools/poster-art.mjs reads them, and at ~1.9 MB
@@ -66,6 +75,10 @@ const DELIVERABLES = [
   'out/promo-1.mp4',
   'out/promo-2.mp4',
   'out/promo-narrated.mp4',
+  // The film, as a playlist and its segments. Named as a directory rather
+  // than a file — 109 pieces plus the playlist and the init header, and the
+  // list would be unreadable spelled out.
+  'out/film/',
   'out/book.html',
   // The cast cluster that stands over the deck's title.
   'out/heads/trio.png',
@@ -77,7 +90,14 @@ const gone = DELIVERABLES.filter((f) => !fs.existsSync(path.join(ROOT, f)));
 if (gone.length) {
   console.warn('  the deck references renders that are missing:\n    ' + gone.join('\n    '));
 }
-files.push(...DELIVERABLES.filter((f) => fs.existsSync(path.join(ROOT, f))));
+// A deliverable ending in / is a whole directory: everything under it ships.
+const expand = (f) => {
+  const abs = path.join(ROOT, f);
+  if (!f.endsWith('/')) return fs.existsSync(abs) ? [f] : [];
+  if (!fs.existsSync(abs)) return [];
+  return fs.readdirSync(abs).map((n) => f + n).filter((r) => fs.statSync(path.join(ROOT, r)).isFile());
+};
+files.push(...DELIVERABLES.flatMap(expand));
 
 fs.rmSync(DIST, { recursive: true, force: true });
 let bytes = 0;

@@ -162,7 +162,11 @@ export function makeStage(host) {
 
   const sfx = {};
   for (const n of SFX_NAMES) {
-    const a = new Audio(asset(`assets/audio/sfx/${n}.wav`));
+    // MP3, not the WAV beside it. Every one of these is preloaded the moment a
+    // game mounts, and 3.7 MB of PCM is the one part of the site brotli cannot
+    // shrink on the way out; at 192 kbps they are a quarter of a megabyte and
+    // indistinguishable.
+    const a = new Audio(asset(`assets/audio/sfx/${n}.mp3`));
     a.preload = 'auto';
     sfx[n] = a;
   }

@@ -46,7 +46,10 @@ const urls = [
   'web/game.html',
   ...walk('src').filter((f) => f.endsWith('.js')),
   ...walk('assets/fonts'),
-  ...walk('assets/audio/sfx').filter((f) => f.endsWith('.wav')),
+  // The MP3s, not the WAVs beside them — src/game/ui.js loads those, and a
+  // precache list that names a file the app never asks for is 3.7 MB of dead
+  // weight in every installed copy.
+  ...walk('assets/audio/sfx').filter((f) => f.endsWith('.mp3')),
   ...SCENES.map((s) => `${SCENE_DIR}/${s}.svg`),
   ...CHARS.map((c) => `${CHAR_DIR}/${c}.svg`),
 ];
