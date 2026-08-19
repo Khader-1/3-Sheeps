@@ -92,6 +92,28 @@
     position: absolute; inset: -8%; z-index: 0;
     background: center/cover no-repeat var(--shot);
     filter: blur(26px) saturate(1.15) brightness(.42); transform: scale(1.1);
+    /* A very slow drift across the blurred poster. The title slide is held for
+       as long as it takes to introduce the project, and a still image behind a
+       still title reads as a screen that has frozen. Ninety seconds a cycle is
+       slow enough that nobody catches it moving — they only notice that it
+       is not dead. The scale never goes below the 1.1 the blur needs to keep
+       its soft edges off the screen. */
+    animation: drift 90s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: scale(1.1) translate3d(-1.2%, -0.8%, 0); }
+    to   { transform: scale(1.17) translate3d(1.2%, 0.8%, 0); }
+  }
+  /* The cast over the title, breathing. Three heads on one PNG cannot move
+     apart, so the whole cluster takes one slow rise and fall — the smallest
+     thing that stops it reading as a sticker. */
+  .crest { animation: breathe 5.5s ease-in-out infinite; transform-origin: 50% 90%; }
+  @keyframes breathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-1.1%) scale(1.014); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg-poster, .crest { animation: none; }
   }
   .vignette { position: absolute; inset: 0; z-index: 0;
     background: radial-gradient(ellipse at center, transparent 25%, rgba(4,8,3,.86) 78%); }
