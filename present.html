@@ -742,11 +742,25 @@
     display: flex; justify-content: center; gap: clamp(7px, 1vmin, 13px);
     pointer-events: none;
   }
+  /* The progress dots run the three building materials, in the order the
+     brothers use them: straw, then wood, then brick. Eight sections over three
+     materials, so the run is 3/3/2 — and it lands the brick on the games, the
+     book and the closing house, which is the half of the deck that is finished
+     work rather than film. Colours sampled off the art: the straw house's
+     thatch, the log walls, and the brick that the closing slide builds with.
+
+     Unlit they are all the same faint cream; the material only shows once a
+     section has been reached, so the rail fills in as the deck is built. */
   .rail b {
     width: clamp(7px, .9vmin, 12px); aspect-ratio: 1; border-radius: 50%;
     background: rgba(255,246,220,.26); transition: all .3s; pointer-events: auto; cursor: pointer;
   }
-  .rail b.on { background: var(--gold); transform: scale(1.5); }
+  .rail b.done { background: var(--mat); }
+  .rail b.on { background: var(--mat, var(--gold)); transform: scale(1.5);
+               box-shadow: 0 0 0 .28em color-mix(in srgb, var(--mat, var(--gold)) 22%, transparent); }
+  .rail b:nth-child(-n+3) { --mat: #e0b64a; }            /* قش   — thatch */
+  .rail b:nth-child(n+4):nth-child(-n+6) { --mat: #9a6a3c; }  /* حطب — logs */
+  .rail b:nth-child(n+7) { --mat: #ac3836; }             /* طوب  — brick */
   .count {
     position: fixed; inset: clamp(14px,2vmin,26px) auto auto clamp(14px,2vmin,26px);
     z-index: 30; font-size: clamp(12px,1.5vmin,17px); color: var(--muted);
@@ -1075,7 +1089,12 @@
     document.body.classList.remove('bare');
     at = i;
     slides[at].classList.add('on');
-    dots.forEach((d, k) => d.classList.toggle('on', k === at));
+    // `done` keeps the material showing on everything already visited, so the
+    // rail reads as built rather than as a single lit dot travelling along it.
+    dots.forEach((d, k) => {
+      d.classList.toggle('on', k === at);
+      d.classList.toggle('done', k < at);
+    });
     count.textContent = `${ar(at + 1)} / ${ar(slides.length)}`;
     onEnter(slides[at]);
   }
