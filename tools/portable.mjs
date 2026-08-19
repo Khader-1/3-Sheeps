@@ -1,6 +1,6 @@
 // Package the whole project as a folder anyone can run with no internet.
 //
-//   node tools/portable.mjs            -> out/الخراف-الثلاثة-محمول.zip
+//   node tools/portable.mjs            -> out/sheeps-offline.zip
 //   node tools/portable.mjs --release  -> and publish it as a GitHub release
 //
 // The presentation room may have no usable network, and the people presenting
@@ -116,8 +116,8 @@ const README = `الخراف الثلاثة والذئب الماكر
 
 نسخة كاملة تعمل بدون إنترنت.
 
-  ماك      اضغط مرّتين على   افتح-العرض.command
-  ويندوز   اضغط مرّتين على   افتح-العرض.bat
+  ماك      اضغط مرّتين على   START-HERE.command
+  ويندوز   اضغط مرّتين على   START-HERE.bat
 
 بيفتح المتصفح على العرض لحاله. لو ما فتح، افتح المتصفح على:
   http://localhost:${PORT}/present.html
@@ -154,16 +154,48 @@ if (!fs.existsSync(DIST)) {
 
 fs.rmSync(STAGE, { recursive: true, force: true });
 copyDir(DIST, STAGE);
-fs.writeFileSync(path.join(STAGE, 'افتح-العرض.command'), MAC);
-fs.chmodSync(path.join(STAGE, 'افتح-العرض.command'), 0o755);
-fs.writeFileSync(path.join(STAGE, 'افتح-العرض.bat'), WIN);
+// The two files a person has to find and double-click are named in ASCII.
+// They were Arabic, and on Windows they came out as ╪º┘ü╪¬╪¡-╪º┘ä╪╣╪▒╪╢.bat —
+// see the note on the zip below. That is fixed, but these two are the ones
+// that must survive an old unzipper on a borrowed laptop ten minutes before a
+// defence, so they do not depend on the fix being honoured.
+fs.writeFileSync(path.join(STAGE, 'START-HERE.command'), MAC);
+fs.chmodSync(path.join(STAGE, 'START-HERE.command'), 0o755);
+fs.writeFileSync(path.join(STAGE, 'START-HERE.bat'), WIN);
 fs.writeFileSync(path.join(STAGE, 'server.mjs'), SERVER);
 fs.writeFileSync(path.join(STAGE, 'اقرأني.txt'), README);
 
 fs.rmSync(ZIP, { force: true });
-// -y keeps the launcher executable; macOS metadata is left out so the zip does
-// not carry a __MACOSX directory into Windows.
-execFileSync('zip', ['-r', '-q', '-y', '-X', ZIP, NAME], { cwd: path.join(ROOT, 'out') });
+// Zipped through Python rather than the `zip` command.
+//
+// A zip entry can carry its name either as raw bytes or as UTF-8, and which
+// one it is lives in bit 11 of the entry's flags. Info-ZIP — which is what
+// /usr/bin/zip on macOS is — writes UTF-8 bytes and leaves the bit clear, so
+// Windows falls back to the machine's own codepage and every Arabic name in
+// the archive turns to mojibake. The build that fixes it takes -UN=UTF8; the
+// one shipped with macOS is older than that option.
+//
+// Python's zipfile sets the bit whenever a name is not pure ASCII, which is
+// all that was needed. It also lets the executable bit be written explicitly,
+// which is what -y was doing before, and it never invents a __MACOSX folder.
+const zipper = `
+import os, sys, zipfile
+root, out, name = sys.argv[1], sys.argv[2], sys.argv[3]
+with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+    for base, dirs, files in os.walk(os.path.join(root, name)):
+        dirs.sort(); files.sort()
+        for f in files:
+            full = os.path.join(base, f)
+            arc = os.path.relpath(full, root)
+            info = zipfile.ZipInfo.from_file(full, arc)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            # rwxr-xr-x for the launcher, rw-r--r-- for everything else
+            info.external_attr = (0o100755 if f.endswith(('.command', '.sh')) else 0o100644) << 16
+            with open(full, 'rb') as fh, z.open(info, 'w') as w:
+                while chunk := fh.read(1 << 20):
+                    w.write(chunk)
+`;
+execFileSync('python3', ['-c', zipper, path.join(ROOT, 'out'), ZIP, NAME]);
 
 const mb = (p) => (fs.statSync(p).size / 1048576).toFixed(0);
 let files = 0;
