@@ -566,6 +566,53 @@
   }
   /* Hold the whole scene while the presenter names it, then take the ends. */
   #s-poster.on .haze { opacity: 1; transition: opacity 2s ease 1.4s; }
+
+  /* The chase, once the reveal has finished — see posterChase() below.
+     Above the veil rather than under it: the two of them are standing on the
+     near side of the glass looking at the page, so the blur that took the
+     scenery away must not take them with it. Below the chrome, which carries
+     z-index 1, so the heading is never walked over.
+
+     They are dimmed all the same. The veil left the room dark and the page
+     the only lit thing in it, and two figures at full brightness would read
+     as stickers rather than as anyone standing there. This is the drop the
+     glass got, less what the page is spilling back onto them. */
+  .chase {
+    position: absolute; inset: 0; pointer-events: none;
+    opacity: 0; transition: opacity .45s ease;
+    filter: brightness(.84) saturate(.9);
+  }
+  .chase.live { opacity: 1; }
+  /* The shadow they throw on the page as they cross it — see the projector
+     arithmetic in layoutChase(). brightness(0) rather than a black fill,
+     because a fill would have to reach inside a <use>'s shadow tree, which no
+     stylesheet can; a filter takes the whole rendered silhouette at once,
+     alpha and all, whatever the artwork is painted. */
+  .chase .proj { filter: brightness(0) blur(4px); opacity: .55; }
+  /* The page's own colours thrown back onto whoever is standing in it. screen
+     rather than a plain overlay, because light adds: it can only make him
+     brighter, never dirty him, and the darkest parts of the artwork leave him
+     alone entirely. The blur is wide enough that no edge of the drawing is
+     legible on him — what lands is the colour of a region, not a picture.
+     The saturation is pushed first, because light landing on a near-white
+     sheep screens straight to white and takes its colour with it: half of the
+     cast here is pale, and without the boost only the wolf ever visibly
+     catches the green. */
+  .chase .lit {
+    mix-blend-mode: screen; filter: blur(22px) saturate(2.1);
+    /* Strength and presence are both set per frame, from how near the page he
+       is — see the falloff in poseAt(). */
+    display: none; opacity: 0;
+  }
+  .chase .litmask { filter: brightness(0) invert(1); }
+  /* The bloom coming off him. Its strength is set per frame from how near the
+     page he is, so it comes up as he walks into the light instead of switching
+     on at a line. Cream rather than white — the same warm the .glow spilling
+     off the page is, so the two read as one light source. */
+  .chase .halo {
+    mix-blend-mode: screen; display: none; opacity: 0;
+    filter: blur(14px) brightness(2.9) sepia(.3) saturate(1.6);
+  }
   /* Every layer above is positioned with z-index auto, so they paint in
      document order and the stack reads off the markup. The chrome only needs
      to beat them. No scrim: one would darken the poster's own sky and grass
@@ -928,6 +975,8 @@
     <i class="glow"></i>
     <div class="pano scenery win" style="--art:url('out/poster-wide-bg.svg')"></div>
     <div class="pano win" style="--art:url('out/poster-wide-fg.svg')"></div>
+    <!-- In front of the page, and throwing a shadow onto it. -->
+    <svg class="chase" id="chase" aria-hidden="true"></svg>
     <div><div class="kicker">٠٤ — الهوية البصرية</div><h2>الملصق</h2></div>
     <div class="stage"></div>
     <div class="foot"><span>المشهد كاملًا، ثم الملصق وحده</span></div>
@@ -1027,13 +1076,21 @@
   // offset* rather than getBoundingClientRect(): a slide that is not showing
   // carries transform: scale(1.03), and a measured rect would come back 3%
   // large. Layout offsets ignore transforms.
+  //
+  // The same box in a plain object, for the chase below. It stands the two of
+  // them on the page's own bottom edge and marks their stopping places off its
+  // sides, so it needs these as numbers rather than as CSS strings — and it
+  // needs to hear about a resize, which is what onWindow is for.
+  let win = null;
+  const winWatch = [];
+  const onWindow = (fn) => { winWatch.push(fn); if (win) fn(win); };
   {
     const slide = document.getElementById('s-poster');
     const stage = slide.querySelector('.stage');
     const A3 = 841.68 / 1190.55;
     // The panorama in its own units, as tools/poster-art.mjs leaves it:
     // viewBox "33.50 0 1885.17 1031.09".
-    const ART = { x: 33.5, h: 1031.09 };
+    const ART = { x: 33.5, w: 1885.17, h: 1031.09 };
     // And where the A3 page sits inside it — the numbers tools/poster-art.mjs
     // prints as "the A3 page lands at". The wide export is the narrow one at
     // 0.81986 shifted by (361.0, 75.23), every baseline in both files agreeing
@@ -1069,6 +1126,13 @@
       // at the artwork's own edges, not the window's, so the join is between
       // flat green and flat green.
       slide.style.setProperty('--art-b', `${ay + ART.h * k}px`);
+      win = { x0, x1: x0 + w, y0, y1: y0 + h, w, h,
+              // Where the artwork itself lands, which the chase needs in order
+              // to paint a copy of it onto whoever is standing in front of it.
+              artX: x0 - (PAGE.x - ART.x) * k, artY: ay,
+              artW: ART.w * k, artH: ART.h * k,
+              slideW: slide.offsetWidth, slideH: slide.offsetHeight };
+      winWatch.forEach((fn) => fn(win));
     };
     sizeWindow();
     addEventListener('resize', sizeWindow);
@@ -1266,6 +1330,10 @@
     if (s.id === 's-games') { mountGames(); countUp(); }
     if (s.id === 's-film') mountFilm();
     if (s.id === 's-book') mountBook();
+    // Started on the way in and killed on the way out, rather than left to
+    // run: it is a per-frame rig pose, and two of them ticking behind the film
+    // is a stutter nobody would trace back to here.
+    if (s.id === 's-poster') startChase(); else stopChase();
     chrome(s, true);
   }
 
@@ -1675,6 +1743,572 @@
     }
   }
   liveCrest();
+
+  // ---- the chase across the poster --------------------------------------
+  //
+  // The reveal ends with the page lit and the rest of the room dark, and then
+  // nothing at all happens for as long as the presenter keeps talking. So the
+  // chase from «اهرب إلى بيت أخي» comes through the front of it: the lamb at a
+  // sprint, the wolf behind him — who pulls up short of the poster and forgets
+  // what he was chasing. The lamb carries on off the far edge, then comes back
+  // at a walk to see what stopped him, and the two of them end up one either
+  // side of the page, both watching it.
+  //
+  // The same rigs and the same walk cycle as the game, not a recording of one.
+  // stride() in src/anim/gait.js poses the limbs from a phase, and the phase
+  // advances with the ground covered rather than with the clock, so the feet
+  // stay planted at any speed and stop dead when the travel does. That
+  // function used to live inside src/game/run.js; it moved because there are
+  // two callers now.
+  //
+  // Imported lazily. It pulls in the rig, the character registry and the two
+  // Moho exports behind them, and a deck that cannot draw a wolf should still
+  // be a deck.
+  const CHASE_AT = 5200;   // ms after landing: the veil ends at 3.4s, the glow at 5.0s
+  const chaseBox = document.getElementById('chase');
+  let cast = null, chaseRaf = 0, chaseTimer = 0, chaseToken = 0;
+
+  // Travel is a list of legs. Each runs at a constant speed for the first
+  // (1 − decel) of its duration and then ramps linearly to a standstill over
+  // the rest — rather than an easing curve, because both quantities the rest
+  // of this needs, where he is and how fast he is going, fall out of it in
+  // closed form, and because any ordinary ease-out has him slowing from the
+  // moment he enters frame, which reads as arriving rather than as fleeing.
+  //
+  // Returns his position and his speed as a fraction of that leg's cruise —
+  // which is also the amplitude the stride wants, so the legs fold up as he
+  // stops instead of freezing mid-step.
+  function legAt(leg, t) {
+    const { t0, t1, from, to, decel = 0 } = leg;
+    // A leg that goes nowhere is a hold. Without this it would come out as a
+    // full-amplitude stride covering no ground — running on the spot.
+    if (from === to) return { x: from, v: 0 };
+    if (t >= t1) return { x: to, v: 0 };
+    const u = Math.max(0, (t - t0) / (t1 - t0));
+    const flat = 1 - decel;
+    let s = u, v = 1;
+    if (decel > 0 && u > flat) {
+      const k = (u - flat) / decel;
+      s = flat + decel * (k - k * k / 2);
+      v = 1 - k;
+    }
+    // Cruising covers (1 − decel/2) of the leg's duration worth of ground, so
+    // that is what the fraction has to be measured against for `to` to land.
+    return { x: from + (to - from) * (s / (1 - decel / 2)), v };
+  }
+
+  /** The leg in force at t, and where it has got to. Parked between legs. */
+  function travel(legs, t) {
+    let leg = legs[0];
+    for (const l of legs) if (t >= l.t0) leg = l;
+    if (t < leg.t0) return { leg, x: leg.from, v: 0 };
+    return { leg, ...legAt(leg, t) };
+  }
+
+  async function loadCast() {
+    if (cast) return cast;
+    let mod;
+    try {
+      mod = await Promise.all([
+        import('./src/expressions.js'),
+        import('./src/anim/gait.js'),
+        import('./src/rig.js'),
+      ]);
+    } catch { return null; }
+    const [ex, gait, core] = mod;
+
+    // Three rigs for two characters. The wolf is in profile throughout — his
+    // side view is the one drawn to walk, and it faces right, which is the way
+    // he is going.
+    //
+    // The lamb is drawn twice. Face-on for the sprint, which is «اهرب»'s own
+    // pairing and the only view of him with an expression pointed at the room.
+    // In profile for the walk back, because by then he is not fleeing past the
+    // camera, he is going somewhere and then looking at it — and his side view
+    // faces left, which is both the way he returns and the way he has to face
+    // to watch the page once he is standing beside it. Neither is ever flipped.
+    //
+    // He changes out of frame, in the second and a bit he spends past the far
+    // edge, so the swap is never seen.
+    let wolf, lamb, lambSide;
+    try {
+      [wolf, lamb, lambSide] = await Promise.all([
+        ex.loadCharacter('wolf', 'side'),
+        ex.loadCharacter('small', 'front'),
+        ex.loadCharacter('small', 'side'),
+      ]);
+    } catch { return null; }
+    ex.restArms(lamb);
+    const REST_SMALL = [ex.REST_ARMS['اليد_ش'], ex.REST_ARMS['اليد_ي']];
+
+    // The page is the only lit thing in the room, so anyone crossing in front
+    // of it throws a shadow on it, and a projector's shadow is not a copy
+    // pasted behind the figure: the light comes from a point, so the shadow is
+    // the figure magnified about wherever the beam's axis meets the screen.
+    // Which means it sweeps across faster than he does and meets him in the
+    // middle — the thing everyone has seen happen to a presenter.
+    //
+    // <use> rather than a cloned rig, so there is one set of poses. The
+    // silhouettes track every limb for free, and a view switched off with
+    // display:none stops casting one at the same moment it stops being drawn.
+    // Ahead of the figures in document order so it paints behind them, and
+    // clipped to the page because there is no light falling anywhere else.
+    const defs = core.svgEl('defs');
+    const clip = core.svgEl('clipPath', { id: 'chase-page' });
+    const clipRect = core.svgEl('rect');
+    clip.appendChild(clipRect);
+    defs.appendChild(clip);
+    const castOn = core.svgEl('g', { 'clip-path': 'url(#chase-page)' });
+    const proj = core.svgEl('g', { class: 'proj' });
+    castOn.appendChild(proj);
+    chaseBox.append(defs, castOn);
+
+    // And the same page throws light on them as they cross it. Not a
+    // brightening — the actual artwork, the actual pixels they are standing in
+    // front of, painted inside their own outline and blurred until it is
+    // colour rather than picture, then screened over them. Stand in front of
+    // the green field and your legs go green; stand in front of the sky and
+    // your back goes blue.
+    //
+    // A <mask> rather than a clip-path, because a clip path takes shapes and
+    // what is wanted here is a whole posed rig. brightness(0) invert(1) turns
+    // the rig into a white silhouette on nothing, which is exactly what a
+    // luminance mask reads as "show this".
+    //
+    // The blur is on the artwork and runs before the mask does — CSS orders it
+    // filter, then mask — so the colour is soft and the edge of him stays
+    // hard. It also feathers the edge of the artwork itself, which is what
+    // stops a hard vertical seam appearing down his body as he walks into the
+    // light at the side of the page.
+    const litFor = (id) => {
+      const mask = core.svgEl('mask', { id: `${id}-lit`, maskUnits: 'userSpaceOnUse' });
+      const silhouette = core.svgEl('use', { href: `#${id}`, class: 'litmask' });
+      mask.appendChild(silhouette);
+      defs.appendChild(mask);
+      const img = core.svgEl('image', {
+        href: 'out/poster-wide.png', preserveAspectRatio: 'none',
+      });
+      // Cut to the page on the inside and blurred on the outside, in that
+      // order, so the light stops where the lit thing stops and then softens
+      // across the boundary. Blurring first and cutting second would put a
+      // hard vertical line down whoever is halfway into it.
+      const inner = core.svgEl('g', { 'clip-path': 'url(#chase-page)' });
+      inner.appendChild(img);
+      const g = core.svgEl('g', { class: 'lit', mask: `url(#${id}-lit)` });
+      g.appendChild(inner);
+      chaseBox.appendChild(g);
+      return { g, img, mask };
+    };
+
+    // And a bloom around the edge of him while he is in it. A blurred, lifted
+    // copy of the same silhouette, screened, sitting under the figure so it
+    // reads as light coming off him rather than as a sticker behind him. The
+    // wool takes it best — it is the one white thing in a dark room.
+    const haloFor = (id) => {
+      const g = core.svgEl('g', { class: 'halo' });
+      g.appendChild(core.svgEl('use', { href: `#${id}` }));
+      chaseBox.appendChild(g);
+      return g;
+    };
+
+    let n = 0;
+    const unit = (r) => {
+      const id = `chase-u${++n}`;
+      const halo = haloFor(id);               // under him
+      const g = core.svgEl('g', { id });
+      g.appendChild(r.node);
+      chaseBox.appendChild(g);                // him
+      proj.appendChild(core.svgEl('use', { href: `#${id}` }));
+      return { holder: g, halo, lit: litFor(id) };   // and the light on him
+    };
+
+    // Four beats, and every time in this table is a chase-second — t = 0 is
+    // the moment the reveal has finished, not the moment the section landed.
+    //
+    //   0.0   the lamb comes through at a sprint, the wolf a beat behind
+    //   2.3   the wolf pulls up short of the page and forgets the lamb
+    //   3.5   the lamb, safe past the far edge, walks back to look
+    //   6.2   the pair of them stand watching, one either side
+    //   8.6   the lamb strolls out in front of the page — and turns around
+    //  10.4   waves both arms at a wolf who has stopped paying attention
+    //  11.1   the wolf takes the point, nods once
+    //  12.0   and the chase is on again, both of them off the far edge
+    //
+    // A time is written once, here, and the beats are named off it, because
+    // the whole thing is a chain of reactions and pushing one beat late has to
+    // push every beat after it.
+    const T = {};
+    T.watch = 6.15;    // both standing
+    T.stroll = 8.60;   // the lamb sets off across the page
+    T.turn = 10.15;    // and spins to face the room
+    T.wave = 10.35;
+    T.nod = 11.10;
+    T.bolt = 11.90;    // he sees what he has started
+    T.charge = 12.02;  // 120ms later, which is the wolf noticing
+    T.out = 13.30;
+
+    // Painted in this order, so once they are standing the lamb is the nearer
+    // of the two — he is the one who came back.
+    cast = {
+      ex, gait, proj, clipRect, T,
+      list: [
+        {
+          key: 'wolf', rig: wolf,
+          hRatio: 0.36, strideRatio: 0.70,   // the game's 210 units to a 300-tall wolf
+          armBase: [0, 0], ears: ['الراس/الاذن', 'الراس/الاذن_2'],
+          earPivot: [0.5, 1], earSwing: -9, blinkEvery: 4.3, blinkAt: 1.1,
+          breathe: 1.35, look: -3, lookFrom: 2.30, lookUntil: T.charge, haloPeak: 0.34,
+          nod: [T.nod, T.nod + 0.55],
+          cues: [
+            [0, ex.EXPRESSIONS.menacing],
+            // Pulled up short and staring: brow off its scowl, eye wide, the
+            // pupil forward and up at a page taller than he is.
+            [2.30, { brow: -5, browLift: -8, eyeOpen: 1.22, gaze: [6, -4] }],
+            [T.charge, ex.EXPRESSIONS.menacing],
+          ],
+        },
+        {
+          key: 'dash', rig: lamb,
+          hRatio: 0.36 * 0.70, strideRatio: 0.81,   // and 170 to a 210-tall sheep
+          armBase: REST_SMALL, ears: ['الاذن', 'الاذن_2'],
+          earPivot: [0.5, 0.9], earSwing: 7, blinkEvery: 3.6, blinkAt: 2.4,
+          breathe: 1.9, turnIn: T.turn, wave: [T.wave, T.bolt], haloPeak: 0.66,
+          cues: [
+            [0, ex.EXPRESSIONS.terrified],
+            [T.turn, ex.EXPRESSIONS.happy],
+            [T.bolt, ex.EXPRESSIONS.terrified],
+          ],
+        },
+        {
+          key: 'back', rig: lambSide,
+          hRatio: 0.36 * 0.70, strideRatio: 0.81,
+          armBase: [0, 0], ears: ['الراس/الاذن'],
+          earPivot: [0.5, 1], earSwing: 8, blinkEvery: 3.9, blinkAt: 0.4,
+          breathe: 1.9, look: 4, lookFrom: T.watch, lookUntil: T.stroll, haloPeak: 0.66,
+          stance: [10, -7],   // near leg forward, far leg back
+          turnOut: T.turn,
+          cues: [
+            [0, ex.EXPRESSIONS.worried],
+            // Facing left at a page four times his height. Forward for him is
+            // the other way from the wolf, so the pupil goes the other way too.
+            [T.watch, { brow: -9, browLift: -4, gaze: [-5, -4], eyeOpen: 1.14 }],
+          ],
+        },
+      ],
+    };
+    // The smallest sheep is drawn with his arms *behind* his body, which is
+    // right for arms that hang and wrong for arms that wave: raised, the whole
+    // limb disappears into the wool and the wave reads as a shrug. Moving the
+    // two groups to the end of the rig paints them in front, where a front
+    // view's arms belong anyway.
+    for (const a of ['اليد_ش', 'اليد_ي']) {
+      if (lamb.has(a)) lamb.node.appendChild(lamb.part(a));
+    }
+
+    for (const m of cast.list) {
+      const u = unit(m.rig);
+      m.holder = u.holder;
+      m.lit = u.lit;
+      m.halo = u.halo;
+      gait.buildLimbChains(m.rig);
+      // The drawing's own box, measured once, while it is still at rest.
+      // Everything about where he stands is derived from this and it is never
+      // measured again — see layoutChase().
+      m.rest = m.rig.bbox();
+      ex.express(m.rig, m.cues[0][1]);
+    }
+    return cast;
+  }
+
+  // Where each of them stands, in the slide's own pixels. Everything is off
+  // the poster window rather than off the viewport: they walk along the page's
+  // bottom edge and stop against its sides, so a resize moves the marks with
+  // it and never leaves the wolf standing in mid-air.
+  function layoutChase(w) {
+    if (!cast || !w) return;
+    chaseBox.setAttribute('viewBox', `0 0 ${w.slideW} ${w.slideH}`);
+    const gy = w.y1;
+    const gap = w.h * 0.035;           // "almost", not "against"
+
+    // Where the beam lands, and how much bigger the shadow is than the figure.
+    // The axis is put at the middle of the page and down at the floor, so a
+    // shadow keeps its feet on the same ground line its owner is standing on
+    // and grows upward from there rather than sliding about.
+    //
+    // 1.8 is the magnification, which for a point source is also how much
+    // further from the axis the shadow falls than the figure does — so it is
+    // the same number twice, and cranking it up for a bigger shadow also
+    // throws it off the page sooner. This is as far as that trade goes before
+    // the shadow is only on the page for a quarter of a second.
+    const CAST = 1.8;
+    const cx = w.x0 + w.w / 2;
+    cast.proj.setAttribute('transform',
+      `translate(${cx.toFixed(1)} ${gy.toFixed(1)}) scale(${CAST}) translate(${(-cx).toFixed(1)} ${(-gy).toFixed(1)})`);
+    // The page, to the pixel, so nothing spills onto the smoked glass around
+    // it — where there is no light to block and a shadow would read as a
+    // smudge. Same clamp() the --radius the window layers are cut with uses.
+    const rad = Math.min(14, Math.max(5, w.slideH * 0.011));
+    cast.clipRect.setAttribute('x', w.x0);
+    cast.clipRect.setAttribute('y', w.y0);
+    cast.clipRect.setAttribute('width', w.w);
+    cast.clipRect.setAttribute('height', w.h);
+    cast.clipRect.setAttribute('rx', rad);
+    for (const m of cast.list) {
+      // Everything a previous visit left on the holder goes first. All three
+      // of these survive leaving the section, and all three would otherwise be
+      // read back as part of the geometry below.
+      m.holder.removeAttribute('transform');
+      m.holder.style.display = '';
+      m.holder.style.filter = '';
+
+      m.height = w.h * m.hRatio;
+      m.stride = m.height * m.strideRatio;
+
+      // rig.place(), but against the box the drawing had at rest instead of
+      // the one it has now. place() re-measures on every call, and by the end
+      // of this section the lamb is a lamb with both arms over his head and
+      // the wolf is mid-stride — so coming back to the section scaled each of
+      // them to the height of their own last pose and re-centred them on it.
+      // The rest box cannot change, so it is taken once and kept.
+      const b = m.rest, s = m.height / b.height;
+      m.rig.node.setAttribute('transform',
+        `translate(0 ${gy.toFixed(1)}) scale(${s.toFixed(5)}) `
+        + `translate(${(-(b.x + b.width / 2)).toFixed(2)} ${(-(b.y + b.height)).toFixed(2)})`);
+      // And his edges follow from it by arithmetic. Measuring them a second
+      // time off the live node was the other half of the same bug: that
+      // measurement runs through the holder, so it came back carrying
+      // whatever translate and squash the last frame of the last visit left.
+      m.right = b.width * s / 2;
+      m.left = -m.right;
+      m.offL = -m.right - 24;
+      m.offR = w.slideW - m.left + 24;
+      // The artwork, laid over the slide exactly where the window layers lay
+      // it, so the colours falling on him are the ones he is actually in front
+      // of. The mask region has to be given explicitly: the default is a
+      // fraction of the *mask content's* box, and the content here is a <use>
+      // whose box moves every frame.
+      m.lit.img.setAttribute('x', w.artX);
+      m.lit.img.setAttribute('y', w.artY);
+      m.lit.img.setAttribute('width', w.artW);
+      m.lit.img.setAttribute('height', w.artH);
+      m.lit.mask.setAttribute('x', 0);
+      m.lit.mask.setAttribute('y', 0);
+      m.lit.mask.setAttribute('width', w.slideW);
+      m.lit.mask.setAttribute('height', w.slideH);
+    }
+    const [wolf, dash, back] = cast.list;
+    const T = cast.T;
+    cast.page = { x0: w.x0, x1: w.x1 };
+    wolf.mark = w.x0 - gap - wolf.right;   // his leading edge stops short of the page
+    back.mark = w.x1 + gap - back.left;    // and the lamb's, on the far side
+    // Where he stops to show off. Off the middle of the page rather than on
+    // it, so his own shadow is beside him rather than directly behind him and
+    // entirely hidden by its owner.
+    const taunt = cx + w.w * 0.14;
+
+    const SPRINT = { decel: 0, swing: 34, bob: 8, lean: 13 };
+    const WALK = { swing: 22, bob: 4, lean: 3 };
+
+    // Running for his life, and it shows: twelve more degrees of thigh than
+    // the walk, and a lean to go with them.
+    dash.legs = [
+      { t0: 0.00, t1: 2.05, from: dash.offL, to: dash.offR, ...SPRINT },
+      // Parked on the taunt mark for the turn and the wave. from === to, which
+      // travel() reads as standing rather than as running on the spot.
+      { t0: T.turn, t1: T.bolt, from: taunt, to: taunt },
+      { t0: T.bolt, t1: T.out, from: taunt, to: dash.offR, ...SPRINT },
+    ];
+    // A quarter-second behind him, and stopping a good deal earlier — which is
+    // the whole joke: the lamb was never what he was going to catch. Then the
+    // same run again at the end, from a standing start with nothing held back.
+    wolf.legs = [
+      { t0: 0.26, t1: 2.30, from: wolf.offL, to: wolf.mark, decel: 0.40, swing: 26, bob: 7, lean: 9 },
+      { t0: T.charge, t1: T.out + 0.25, from: wolf.mark, to: wolf.offR, decel: 0, swing: 30, bob: 8, lean: 12 },
+    ];
+    // Back at a walk, and slowing over the last third of it rather than
+    // stopping on the mark: he is coming to look, not arriving anywhere. Then
+    // out across the front of the page, which is where the shadow happens.
+    back.legs = [
+      { t0: 3.45, t1: T.watch, from: back.offR, to: back.mark, decel: 0.44, ...WALK },
+      { t0: T.stroll, t1: T.turn - 0.10, from: back.mark, to: taunt, decel: 0.30, ...WALK },
+    ];
+    // Each of the lamb's two views shows only while it is the one being used.
+    // The first swap is hidden off the far edge; the second is in full view in
+    // the middle of the page, which is what turnIn/turnOut are for.
+    dash.show = [[-Infinity, 2.6], [T.turn, Infinity]];
+    back.show = [[3.3, T.turn]];
+  }
+  onWindow(layoutChase);
+
+  function stopChase() {
+    chaseToken++;
+    clearTimeout(chaseTimer);
+    cancelAnimationFrame(chaseRaf);
+    chaseBox.classList.remove('live');
+  }
+
+  function startChase() {
+    stopChase();
+    const token = chaseToken;
+    chaseTimer = setTimeout(async () => {
+      const c = await loadCast();
+      if (!c || token !== chaseToken) return;
+      layoutChase(win);
+      if (!c.list.every((m) => m.legs)) return;
+      runChase(token);
+    }, CHASE_AT);
+  }
+
+  function runChase(token) {
+    const t0 = performance.now();
+    for (const m of cast.list) {
+      m.phase = 0;
+      m.lastX = null;
+      m.cue = 0;
+      cast.ex.express(m.rig, m.cues[0][1]);
+    }
+    const clamp01 = (n) => Math.max(0, Math.min(1, n));
+    const page = cast.page;
+    const poseAt = (t) => {
+      for (const m of cast.list) {
+        // The lamb's two views take turns, and the one waiting is not merely
+        // parked off-screen — it is out of the document's paint entirely, so
+        // it costs nothing per frame either.
+        const shown = !m.show || m.show.some(([a, b]) => t >= a && t < b);
+        m.holder.style.display = shown ? '' : 'none';
+        if (!shown) {
+          m.lit.g.style.display = 'none';
+          m.halo.style.display = 'none';
+          continue;
+        }
+
+        const { leg, x, v } = travel(m.legs, t);
+        // The stride is driven by the ground he has covered, so the feet stay
+        // planted whatever the speed — and reversing direction on the way back
+        // still winds the cycle forward, which is what walking the other way
+        // looks like.
+        if (m.lastX !== null) m.phase += Math.abs(x - m.lastX) / m.stride;
+        m.lastX = x;
+
+        let y = cast.gait.stride(m.rig, m.phase, {
+          swing: leg.swing, bob: leg.bob, lean: leg.lean * v,
+          rock: 2.4, amp: v, armBase: m.armBase,
+        });
+        // Standing is not being still: a held pose for the rest of the slide
+        // reads as the animation having crashed.
+        if (v < 0.02) {
+          y += Math.sin(t * m.breathe) * m.height * 0.007;
+          // A stride at rest puts both legs on zero, and in profile that puts
+          // them on exactly the same pixels — the lamb ends the slide balanced
+          // on what looks like a single pole. Opening them into a stance is
+          // the difference between standing and being stood up.
+          if (m.stance) {
+            const piv = cast.gait.limbPivots(m.rig);
+            cast.gait.buildLimbChains(m.rig).legs.forEach((leg, i) => m.rig.pose(leg, {
+              rotate: m.stance[i], pivot: piv.legs[i] || [0.5, 0.04],
+            }));
+          }
+        }
+        // Both arms up and going, which is the one thing on this slide that is
+        // not the film's own animation — nothing in «اهرب» waves. It overwrites
+        // what stride() just wrote to the arms, which at a standstill is only
+        // their rest angle. Positive is up on his right arm and down on his
+        // left, the two being drawn as mirrors of each other.
+        if (m.wave && t >= m.wave[0] && t < m.wave[1]) {
+          const s = Math.sin((t - m.wave[0]) * 15.5);
+          const arms = cast.gait.buildLimbChains(m.rig).arms;
+          if (arms[0]) m.rig.pose(arms[0], { rotate: 46 + s * 22, pivot: [1, 0.4] });
+          if (arms[1]) m.rig.pose(arms[1], { rotate: -48 - s * 22, pivot: [0, 0.4] });
+          y -= Math.abs(Math.sin((t - m.wave[0]) * 7.75)) * m.height * 0.028;
+        }
+
+        // The turn. A cutout has no other side to swing round to, so it is
+        // done the way every cutout has always done it: squash to nothing on
+        // the way out, stretch back from nothing on the way in, and the two
+        // views trade places at the pinch where there is nothing to see.
+        let sx = 1;
+        if (m.turnOut != null && t > m.turnOut - 0.10) {
+          sx = 1 - 0.88 * clamp01((t - (m.turnOut - 0.10)) / 0.10);
+        } else if (m.turnIn != null && t >= m.turnIn && t < m.turnIn + 0.10) {
+          sx = 0.12 + 0.88 * (t - m.turnIn) / 0.10;
+        }
+        m.holder.setAttribute('transform',
+          `translate(${x.toFixed(1)} ${y.toFixed(2)})${sx < 1 ? ` scale(${sx.toFixed(3)} 1)` : ''}`);
+
+        // How much of the page's light is reaching him: all of it while any
+        // part of him is in front of it, tailing off across a body's width to
+        // either side. A hard boundary would switch the glow on at a line,
+        // which is the one thing light never does.
+        //
+        // Both layers are masked, blurred copies that have to be re-rasterised
+        // on every frame he moves, so they are unmounted entirely once he is
+        // out of range. For most of this section that is everybody.
+        const near = Math.max(page.x0 - (x + m.right), (x + m.left) - page.x1, 0);
+        const amt = clamp01(1 - near / (m.height * 0.85));
+        if (amt < 0.02) {
+          m.lit.g.style.display = 'none';
+          m.halo.style.display = 'none';
+        } else {
+          m.lit.g.style.display = '';
+          m.lit.g.style.opacity = (0.58 * amt).toFixed(3);
+          m.halo.style.display = '';
+          m.halo.style.opacity = (m.haloPeak * amt).toFixed(3);
+        }
+        // And he is simply brighter in it. The layer he sits in is held at
+        // brightness(.84) for the dark room; this takes him back past 1, so
+        // walking into the light reads on the whole of him and not only on the
+        // colour landing on his edges.
+        m.holder.style.filter = amt < 0.02 ? '' : `brightness(${(1 + 0.55 * amt).toFixed(3)})`;
+
+        // Expressions are a list of (time, spec) and the pointer only moves
+        // forward, so each one is applied on the frame it comes due and not on
+        // the four hundred after it — express() is not cheap enough to run
+        // every frame for the length of a section.
+        while (m.cue + 1 < m.cues.length && t >= m.cues[m.cue + 1][0]) {
+          cast.ex.express(m.rig, m.cues[++m.cue][1]);
+        }
+
+        const f = m.rig.face;
+        // Eyes shut on a spike rather than a fade — a blink is 120ms and has
+        // no ease in it.
+        const bk = (t + m.blinkAt) % m.blinkEvery;
+        const k = bk < 0.12 ? Math.sin((bk / 0.12) * Math.PI) : 0;
+        if (k) for (const p of [f.eyeL, f.eyeR, f.eye]) {
+          if (p && m.rig.has(p)) cast.ex.poseOver(m.rig, p, { scaleY: 1 - 0.93 * k });
+        }
+        // An ear turning every seven seconds or so. sin to the eighth is flat
+        // for most of the cycle and a short flick at the top of it.
+        const tw = Math.max(0, Math.sin(t * 0.86 + m.blinkAt)) ** 8;
+        for (const [i, e] of m.ears.entries()) {
+          if (m.rig.has(e)) m.rig.pose(e, { rotate: m.earSwing * tw * (i ? 0.55 : 1), pivot: m.earPivot });
+        }
+        // The head comes round to the page once he is standing at it, and back
+        // to level when he has something else to do — the wolf spends the last
+        // beat running and should not do it looking up at a poster.
+        if (f.head && m.rig.has(f.head)) {
+          const on = clamp01((t - (m.lookFrom ?? Infinity)) / 0.8)
+                   * (1 - clamp01((t - (m.lookUntil ?? Infinity)) / 0.3));
+          // One deliberate nod: he has taken the point.
+          const nod = m.nod && t >= m.nod[0] && t < m.nod[1]
+            ? Math.sin((t - m.nod[0]) / (m.nod[1] - m.nod[0]) * Math.PI) * 13 : 0;
+          m.rig.pose(f.head, { rotate: (m.look ?? 0) * on + nod, pivot: [0.5, 1] });
+        }
+      }
+    };
+
+    // Posed on the start mark before the layer is allowed to show. Fading in
+    // first would spend the fade with both of them standing at x = 0, in the
+    // middle of the page they are supposed to be about to run past.
+    poseAt(0);
+    chaseBox.classList.add('live');
+
+    const step = (now) => {
+      if (token !== chaseToken) return;
+      poseAt((now - t0) / 1000);
+      chaseRaf = requestAnimationFrame(step);
+    };
+    chaseRaf = requestAnimationFrame(step);
+  }
 
   // ---- the closing house -----------------------------------------------
   // Drawn here rather than written out as markup: the courses are a running
