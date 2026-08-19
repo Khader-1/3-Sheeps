@@ -1219,6 +1219,25 @@
   function onKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+    // A number goes straight to that section, counting from the title as one —
+    // the same number the rail shows in the corner. Read off the code and not
+    // the character: this deck is presented on an Arabic layout, where the
+    // digit row types ١٢٣, and the key is what was meant.
+    //
+    // Ahead of the count, which every other key merely skips. Pressing ٦ is
+    // someone saying where they want to be, not someone asking for the joke to
+    // hurry up, and it should not cost two presses to be taken there.
+    const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+    if (digit) {
+      e.preventDefault();
+      const i = Number(digit[1]) - 1;
+      // Through the overview like every other move, so the room is still told
+      // where it is going — a number is a faster way of clicking the rail, not
+      // a different kind of navigation.
+      if (i < slides.length && i !== at) { countDone(); go(i); }
+      return;
+    }
+
     // The count is a flourish, never a wait.
     if (tally.classList.contains('on')) { countDone(); return; }
     // The layout decides which letter a key types; the key is what was meant.
