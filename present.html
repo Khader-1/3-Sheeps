@@ -132,15 +132,13 @@
 
   /* Blink. The lid is not drawn, so it is the eye group flattening — which is
      how the rigs blink in the film too. */
-  .crest [data-part="العين"], .crest [data-part="العين_2"],
-  .crest [data-part="ت_العين"], .crest [data-part="ت_العين_2"] {
+  .crest .eye {
     transform-box: fill-box; transform-origin: center;
     animation: blink 5.3s ease-in-out infinite;
   }
-  .crest .c-mid   [data-part^="العين"] { animation-duration: 6.1s; animation-delay: -2.4s }
-  .crest .c-small [data-part^="العين"] { animation-duration: 7.3s; animation-delay: -4.9s }
-  .crest .c-wolf  [data-part^="ت_العين"],
-  .crest .c-wolf  [data-part^="العين"]  { animation-duration: 8.9s; animation-delay: -1.1s }
+  .crest .c-mid   .eye { animation-duration: 6.1s; animation-delay: -2.4s }
+  .crest .c-small .eye { animation-duration: 7.3s; animation-delay: -4.9s }
+  .crest .c-wolf  .eye { animation-duration: 8.9s; animation-delay: -1.1s }
   @keyframes blink {
     0%, 92%, 100% { scale: 1 1; }
     95%           { scale: 1 .08; }
@@ -234,7 +232,7 @@
 
      Left and right are tagged in JS by measuring, not by name: the sheep call
      theirs _ش_/_ي_ and the wolf calls both of his الحاجب. */
-  .crest .browL, .crest .browR {
+  .crest .brow {
     transform-box: fill-box;
     animation: 14s ease-in-out infinite;
   }
@@ -1406,15 +1404,43 @@
 
     box.replaceChildren(document.importNode(svg, true));
 
-    // Which brow is which side has to be measured, not named. The sheep call
-    // theirs _ش_/_ي_ and the wolf calls both of his الحاجب, so the only thing
-    // the four rigs agree on is where they sit — sort each character's pair by
-    // x and the left one is the left one. Measured after insertion, because a
-    // detached node has no box.
+    // Nothing here is animated on the part itself. applyExpression positions
+    // these by writing a transform attribute, and it rotates and scales about
+    // absolute points in the drawing's own space:
+    //
+    //   الحاجب  translate(0 -3) translate(773 194) rotate(-6) translate(-773 -194)
+    //   ت_العين translate(458 261) scale(1 .8) translate(-458 -261)
+    //
+    // Adding transform-box: fill-box to reach the part's own centre re-bases
+    // the origin for that entire chain, so a rotation authored about a point
+    // in user space is suddenly evaluated about the element's own box and the
+    // brow leaves the face. That is what wrecked the brows and the wolf's
+    // eyes. Wrapping instead gives the animation a clean group in the parent's
+    // coordinate space with no transform of its own, where fill-box means what
+    // it looks like it means.
+    const wrap = (node, cls) => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', cls);
+      node.parentNode.insertBefore(g, node);
+      g.appendChild(node);
+      return g;
+    };
+
+    const EYE = '[data-part="العين"],[data-part="العين_2"],[data-part="ت_العين"],[data-part="ت_العين_2"]';
     for (const ch of box.querySelectorAll('.ch')) {
+      // Only the outermost of each eye. The wolf's ت_العين contains a plain
+      // العين, and blinking both scaled him twice.
+      [...ch.querySelectorAll(EYE)]
+        .filter((n) => !n.parentElement.closest(EYE))
+        .forEach((n) => wrap(n, 'eye'));
+
+      // Which brow is which side has to be measured, not named: the sheep call
+      // theirs _ش_/_ي_ and the wolf calls both of his الحاجب, so where they sit
+      // is the only thing the four rigs agree on. After insertion — a detached
+      // node has no box.
       const brows = [...ch.querySelectorAll('[data-part*="حاجب"]')];
       brows.sort((a, b) => a.getBoundingClientRect().x - b.getBoundingClientRect().x);
-      brows.forEach((n, i) => n.classList.add(i < brows.length / 2 ? 'browL' : 'browR'));
+      brows.forEach((n, i) => wrap(n, i < brows.length / 2 ? 'brow browL' : 'brow browR'));
     }
   }
   liveCrest();
