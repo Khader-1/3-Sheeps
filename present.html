@@ -104,16 +104,165 @@
     from { transform: scale(1.1) translate3d(-1.2%, -0.8%, 0); }
     to   { transform: scale(1.17) translate3d(1.2%, 0.8%, 0); }
   }
-  /* The cast over the title, breathing. Three heads on one PNG cannot move
-     apart, so the whole cluster takes one slow rise and fall — the smallest
-     thing that stops it reading as a sticker. */
-  .crest { animation: breathe 5.5s ease-in-out infinite; transform-origin: 50% 90%; }
+  /* ---- the cast over the title, alive --------------------------------
+     This was a flat PNG, so the whole cluster could only rise and fall as one
+     lump. The same lockup exists as SVG with every rig part still tagged —
+     data-part="الاذن" on the ears, "العين" on the eyes, "العدسه"/"البؤبؤ" on
+     the pupils — so the deck loads that instead and moves the parts.
+
+     Everything here uses the individual translate/rotate/scale properties
+     rather than `transform`. The pupils already carry a transform attribute
+     from applyExpression positioning them in their sockets, and setting the
+     transform property would throw that away and drop them out of the eye.
+     The individual properties compose with it instead.
+
+     Four characters, and nothing is allowed to fall into step: the blink and
+     ear periods are all mutually prime-ish, so the cluster never pulses. */
+  .crest { display: block; }
+  .crest svg { width: 100%; height: auto; display: block; }
+
+  .crest .ch { animation: breathe 5.5s ease-in-out infinite; }
+  .crest .c-mid   { animation-duration: 6.3s; animation-delay: -1.4s }
+  .crest .c-small { animation-duration: 5.9s; animation-delay: -3.1s }
+  .crest .c-wolf  { animation-duration: 7.1s; animation-delay: -2.2s }
   @keyframes breathe {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50%      { transform: translateY(-1.1%) scale(1.014); }
+    0%, 100% { translate: 0 0; }
+    50%      { translate: 0 -0.7%; }
   }
+
+  /* Blink. The lid is not drawn, so it is the eye group flattening — which is
+     how the rigs blink in the film too. */
+  .crest [data-part="العين"], .crest [data-part="العين_2"],
+  .crest [data-part="ت_العين"], .crest [data-part="ت_العين_2"] {
+    transform-box: fill-box; transform-origin: center;
+    animation: blink 5.3s ease-in-out infinite;
+  }
+  .crest .c-mid   [data-part^="العين"] { animation-duration: 6.1s; animation-delay: -2.4s }
+  .crest .c-small [data-part^="العين"] { animation-duration: 7.3s; animation-delay: -4.9s }
+  .crest .c-wolf  [data-part^="ت_العين"],
+  .crest .c-wolf  [data-part^="العين"]  { animation-duration: 8.9s; animation-delay: -1.1s }
+  @keyframes blink {
+    0%, 92%, 100% { scale: 1 1; }
+    95%           { scale: 1 .08; }
+  }
+
+  /* An ear twitches on its own clock. Origin at the base, so it pivots where
+     it joins the skull instead of swinging about its middle. */
+  .crest [data-part="الاذن"], .crest [data-part="الاذن_2"] {
+    transform-box: fill-box; transform-origin: 50% 90%;
+    animation: earFlick 3.7s ease-in-out infinite;
+  }
+  .crest [data-part="الاذن_2"] { animation-duration: 4.3s; animation-delay: -1.9s }
+  .crest .c-small [data-part="الاذن"]   { animation-duration: 5.1s; animation-delay: -2.6s }
+  .crest .c-small [data-part="الاذن_2"] { animation-duration: 6.2s; animation-delay: -0.7s }
+  .crest .c-big   [data-part="الاذن"]   { animation-duration: 4.9s; animation-delay: -3.3s }
+  .crest .c-big   [data-part="الاذن_2"] { animation-duration: 5.7s; animation-delay: -1.2s }
+  @keyframes earFlick {
+    0%, 88%, 100% { rotate: 0deg; }
+    92%           { rotate: -7deg; }
+    96%           { rotate: 3deg; }
+  }
+
+  /* Looking about — in jumps, not drifts.
+     Eased movement was the first thing tried and it was wrong: eyes do not
+     slide. They saccade, snapping between fixations in well under a tenth of a
+     second and then holding still. A pupil easing smoothly from one side to
+     the other for two seconds reads as sedated. So the transitions here are a
+     single percent of the cycle — about ninety milliseconds, near enough life
+     — and the rest is holding. Linear, because there is nothing to ease over.
+     Small, too: a pupil that travels far in a head this size is a squint. */
+  .crest [data-part="العدسه"], .crest [data-part="البؤبؤ"] {
+    animation: glance 9s linear infinite;
+  }
+  .crest .c-mid   [data-part="العدسه"] { animation-duration: 11s; animation-delay: -3.5s }
+  .crest .c-small [data-part="العدسه"] { animation-duration: 10s; animation-delay: -6.2s }
+  /* His pupils get the whole fourteen seconds to themselves rather than the
+     idle drift: two animations cannot both write translate, and the drop of
+     the eyes onto them is the thing that makes the lunge read as intent
+     instead of a bob. They fix a moment before he moves. */
+  .crest .c-wolf [data-part="البؤبؤ"] { animation: stalk 14s linear infinite; }
+  @keyframes stalk {
+    0%, 26%   { translate: 0 0; }
+    27%, 40%  { translate: -1.8px 0; }
+    41%, 55%  { translate: 1.8px 0; }
+    56%, 86%  { translate: 0 2.2px; }   /* fixed on them, and held there */
+    87%, 100% { translate: 0 0; }
+  }
+  @keyframes glance {
+    0%, 30%   { translate: 0 0; }
+    31%, 48%  { translate: -2.2px 0; }
+    49%, 51%  { translate: 0 0; }
+    52%, 72%  { translate: 2.2px 0; }
+    73%, 86%  { translate: 0 -1.3px; }
+    87%, 100% { translate: 0 0; }
+  }
+
+  /* ---- and once in a while, he tries it -------------------------------
+     Every fourteen seconds the wolf leans down at them and the three of them
+     flinch away and come back. One shared clock so it lands as a single
+     event: he moves first, they answer a beat later. Outward as well as
+     down — the two behind break left and right, the eldest just drops. */
+  .crest .c-wolf { animation: breathe 7.1s ease-in-out infinite, lunge 14s ease-in-out infinite; }
+  .crest .c-big   { animation: breathe 5.5s ease-in-out infinite, flinchC 14s ease-in-out infinite; }
+  .crest .c-mid   { animation: breathe 6.3s ease-in-out infinite -1.4s, flinchL 14s ease-in-out infinite; }
+  .crest .c-small { animation: breathe 5.9s ease-in-out infinite -3.1s, flinchR 14s ease-in-out infinite; }
+  @keyframes lunge {
+    0%, 62%, 100% { translate: 0 0; scale: 1; }
+    70%           { translate: 0 2.4%; scale: 1.045; }
+    78%           { translate: 0 1.2%; scale: 1.02; }
+  }
+  @keyframes flinchC {
+    0%, 66%, 100% { translate: 0 0; }
+    73%           { translate: 0 1.9%; }
+    82%           { translate: 0 .5%; }
+  }
+  @keyframes flinchL {
+    0%, 66%, 100% { translate: 0 0; }
+    73%           { translate: -2.1% 1.3%; }
+    82%           { translate: -.6% .3%; }
+  }
+  @keyframes flinchR {
+    0%, 66%, 100% { translate: 0 0; }
+    73%           { translate: 2.1% 1.3%; }
+    82%           { translate: .6% .3%; }
+  }
+
+  /* The brows carry the beat as much as the eyes do — a lunge with a blank
+     forehead is a bob. His come down and angle in; theirs go up and angle out,
+     which is the difference between a threat and a fright. Rotated about the
+     inner end, so the brow tilts rather than see-saws about its middle.
+
+     Left and right are tagged in JS by measuring, not by name: the sheep call
+     theirs _ش_/_ي_ and the wolf calls both of his الحاجب. */
+  .crest .browL, .crest .browR {
+    transform-box: fill-box;
+    animation: 14s ease-in-out infinite;
+  }
+  .crest .browL { transform-origin: 100% 50%; }
+  .crest .browR { transform-origin: 0% 50%; }
+  .crest .c-wolf .browL { animation-name: browMenaceL; }
+  .crest .c-wolf .browR { animation-name: browMenaceR; }
+  .crest .c-big .browL, .crest .c-mid .browL, .crest .c-small .browL { animation-name: browAlarmL; }
+  .crest .c-big .browR, .crest .c-mid .browR, .crest .c-small .browR { animation-name: browAlarmR; }
+  @keyframes browMenaceL {
+    0%, 52%, 100% { rotate: 0deg; translate: 0 0; }
+    62%, 84%      { rotate: -9deg; translate: 0 1.1px; }
+  }
+  @keyframes browMenaceR {
+    0%, 52%, 100% { rotate: 0deg; translate: 0 0; }
+    62%, 84%      { rotate: 9deg; translate: 0 1.1px; }
+  }
+  @keyframes browAlarmL {
+    0%, 66%, 100% { rotate: 0deg; translate: 0 0; }
+    73%, 82%      { rotate: 8deg; translate: 0 -1.3px; }
+  }
+  @keyframes browAlarmR {
+    0%, 66%, 100% { rotate: 0deg; translate: 0 0; }
+    73%, 82%      { rotate: -8deg; translate: 0 -1.3px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .bg-poster, .crest { animation: none; }
+    .bg-poster, .crest *, .crest { animation: none !important; }
   }
   .vignette { position: absolute; inset: 0; z-index: 0;
     background: radial-gradient(ellipse at center, transparent 25%, rgba(4,8,3,.86) 78%); }
@@ -515,7 +664,7 @@
     <div class="bg-poster" style="--shot:url('out/poster-wide.png')"></div>
     <div class="vignette"></div>
     <div class="wrap">
-      <img class="crest" src="out/heads/trio.png" alt="">
+      <div class="crest" id="crest"><img src="out/heads/trio.png" alt=""></div>
       <h1 class="titled">الخراف الثلاثة<br>والذئب الماكر</h1>
       <div class="sub" style="margin-top:1.4em">كلية فلسطين التقنية — دير البلح<br>الوسائط المتعددة والرسوم المتحركة</div>
     </div>
@@ -1222,6 +1371,140 @@
     wake();
   }
   for (const v of document.querySelectorAll('.stage video')) dressPlayer(v);
+
+  // ---- the cast over the title -----------------------------------------
+  // The lockup ships as both a PNG and an SVG, and the SVG still carries every
+  // rig part under data-part. Swap it in so the ears, eyes and pupils are
+  // things the stylesheet can reach; the PNG stays in the markup as what shows
+  // if this never resolves, which is also what a printed copy gets.
+  //
+  // Each character's nodes are id-prefixed — wolf-, big-, mid-, small- — so
+  // the outermost node carrying a prefix is that character's root, and gets
+  // the class the flinch is hung on.
+  async function liveCrest() {
+    const box = document.getElementById('crest');
+    let svg;
+    try {
+      const res = await fetch('out/heads/trio.svg');
+      if (!res.ok) return;
+      const doc = new DOMParser().parseFromString(await res.text(), 'image/svg+xml');
+      svg = doc.documentElement;
+      if (svg.querySelector('parsererror')) return;
+    } catch { return; }
+
+    // The lockup has no text in it, but tools/heads-art.mjs embeds the whole
+    // font stylesheet regardless — 300 KB of base64 the deck already has.
+    svg.querySelectorAll('style').forEach((n) => n.remove());
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+
+    for (const c of ['wolf', 'big', 'mid', 'small']) {
+      const all = [...svg.querySelectorAll(`[id^="${c}-"]`)];
+      const root = all.find((n) => !n.parentElement.closest(`[id^="${c}-"]`));
+      if (root) root.classList.add('ch', `c-${c}`);
+    }
+
+    box.replaceChildren(document.importNode(svg, true));
+
+    // Which brow is which side has to be measured, not named. The sheep call
+    // theirs _ش_/_ي_ and the wolf calls both of his الحاجب, so the only thing
+    // the four rigs agree on is where they sit — sort each character's pair by
+    // x and the left one is the left one. Measured after insertion, because a
+    // detached node has no box.
+    for (const ch of box.querySelectorAll('.ch')) {
+      const brows = [...ch.querySelectorAll('[data-part*="حاجب"]')];
+      brows.sort((a, b) => a.getBoundingClientRect().x - b.getBoundingClientRect().x);
+      brows.forEach((n, i) => n.classList.add(i < brows.length / 2 ? 'browL' : 'browR'));
+    }
+  }
+  liveCrest();
+
+  // ---- the closing house -----------------------------------------------
+  // Drawn here rather than written out as markup: the courses are a running
+  // bond, so every other one starts half a brick over and needs clipping at
+  // both ends, and the delays run bottom-up along each course. That is a loop,
+  // not a hundred lines of hand-kept SVG.
+  const H = { w: 200, h: 182, bx: 32, by: 74, bw: 136, bh: 96, cols: 7, rows: 8 };
+  const BRICK = '#ac3836', MORTAR = '#e9dcc4', ROOF = '#8f2b26', WOOD = '#4d2c13';
+  const STACK = '#7d5a44';
+
+  function buildHouse() {
+    const box = document.getElementById('build');
+    if (box.dataset.built) return;
+    box.dataset.built = '1';
+
+    const bw = H.bw / H.cols;
+    const bh = H.bh / H.rows;
+    const el = (t, a) => {
+      const n = document.createElementNS('http://www.w3.org/2000/svg', t);
+      for (const k in a) n.setAttribute(k, a[k]);
+      return n;
+    };
+
+    const svg = el('svg', { viewBox: `0 0 ${H.w} ${H.h}`, role: 'img',
+      'aria-label': 'بيتٌ من الطوب يُبنى' });
+    // Everything the courses draw is clipped to the wall, so the half brick a
+    // staggered course hangs over the edge simply is not there.
+    const defs = el('defs');
+    const clip = el('clipPath', { id: 'wall' });
+    clip.appendChild(el('rect', { x: H.bx, y: H.by, width: H.bw, height: H.bh }));
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    const walls = el('g', { 'clip-path': 'url(#wall)' });
+    walls.appendChild(el('rect', { x: H.bx, y: H.by, width: H.bw, height: H.bh, fill: MORTAR }));
+    svg.appendChild(walls);
+
+    const PER = 26;                       // between bricks along a course
+    const COURSE = 90;                    // between courses
+    let last = 0;
+    for (let r = 0; r < H.rows; r++) {
+      const y = H.by + H.bh - (r + 1) * bh;          // bottom course first
+      const shift = r % 2 ? -bw / 2 : 0;              // running bond
+      for (let c = -1; c <= H.cols; c++) {
+        const x = H.bx + c * bw + shift;
+        if (x + bw <= H.bx || x >= H.bx + H.bw) continue;
+        const d = r * COURSE + (c + 1) * PER;
+        last = Math.max(last, d);
+        walls.appendChild(el('rect', {
+          class: 'bk', x: x + 0.7, y: y + 0.7, width: bw - 1.4, height: bh - 1.4,
+          rx: 1, fill: BRICK, style: `animation-delay:${d}ms`,
+        }));
+      }
+    }
+
+    // Chimney before the roof, so the roof covers its base and it reads as
+    // passing through rather than sitting on top. Its own colour too — drawn
+    // in the roof's red it simply vanished into it.
+    const roofAt = last + 260;
+    svg.appendChild(el('rect', {
+      class: 'rf', x: H.w / 2 + 24, y: 20, width: 14, height: 42, rx: 1.5, fill: STACK,
+      style: `animation-delay:${roofAt + 120}ms`,
+    }));
+    svg.appendChild(el('path', {
+      class: 'rf', d: `M ${H.bx - 14} ${H.by + 2} L ${H.w / 2} 16 L ${H.bx + H.bw + 14} ${H.by + 2} Z`,
+      fill: ROOF, style: `animation-delay:${roofAt}ms`,
+    }));
+
+    const openAt = roofAt + 380;
+    const door = el('g', { class: 'op', style: `animation-delay:${openAt}ms` });
+    door.appendChild(el('path', {
+      d: `M ${H.w / 2 - 15} ${H.by + H.bh} v -28 a 15 15 0 0 1 30 0 v 28 Z`,
+      fill: WOOD,
+    }));
+    door.appendChild(el('circle', { cx: H.w / 2 + 9, cy: H.by + H.bh - 20, r: 2.2, fill: '#e8c33d' }));
+    svg.appendChild(door);
+
+    const win = el('g', { class: 'op', style: `animation-delay:${openAt + 140}ms` });
+    win.appendChild(el('rect', { x: H.bx + 16, y: H.by + 20, width: 26, height: 22, rx: 2,
+      fill: '#f5ecd0', stroke: WOOD, 'stroke-width': 2.4 }));
+    win.appendChild(el('path', { d: `M ${H.bx + 29} ${H.by + 20} v 22`, stroke: WOOD, 'stroke-width': 2 }));
+    svg.appendChild(win);
+
+    box.appendChild(svg);
+    // A frame's grace so the delays start from a painted page, not mid-layout.
+    requestAnimationFrame(() => box.classList.add('go'));
+  }
 
   // ---- the film, as a stream -------------------------------------------
   // Eleven minutes at a quality worth showing is 69 MB, and Cloudflare Pages
