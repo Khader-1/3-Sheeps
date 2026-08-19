@@ -830,7 +830,14 @@
     transition: opacity .8s ease;
   }
   .roll .card.on { opacity: 1; }
-  .roll .entry { max-width: 15em; }
+  /* Every break that belongs in a name is already an explicit <br> — two
+     names under one role, and the closing paragraphs set the way the film
+     sets them. So the names do not wrap on their own: a max-width here
+     resolves against the inherited font size rather than the name's, which is
+     what was folding «المهندسة منال حجازي» onto two lines. */
+  .roll .entry { max-width: none; }
+  .roll .card:not(.block) .name { white-space: nowrap; }
+  .roll .card.block .entry { max-width: 78vw; }
   .roll .role {
     font-size: clamp(13px, 1.9vmin, 25px); font-weight: 700; color: var(--muted);
     letter-spacing: .04em; margin-bottom: .7em;
@@ -2857,7 +2864,12 @@
     [['الرسم الرقمي / رسوم الحاسوب', 'أحمد محمد خضير'],
      ['الرسوم الأولية (سكتشات)', 'فايز الحسنات\nمحمد الزيتي']],
     [['بناء الهيكل العظمي', 'طارق نصار'], ['تنفيذ التحريك', 'طارق نصار']],
-    [['تحت إشراف', 'المهندسة منال حجازي']],
+    [['المونتاج والمؤثرات الصوتية', 'أحمد محمد خضير']],
+    // The two advisory roles share a card, which is what they have in common —
+    // and puts تحت إشراف on the right, where the senior of the two belongs in
+    // a row that reads right to left.
+    [['تحت إشراف', 'المهندسة منال حجازي'],
+     ['مرشد البرمجة والتطوير', 'م. خضر محمد خضير']],
     [[null, 'كلية فلسطين التقنية — دير البلح\nقسم الحاسوب\nتخصص الوسائط المتعددة والرسوم المتحركة']],
     [[null, 'مشروع تخرج مقدَّم استكمالاً لمتطلبات الحصول على درجة الدبلوم\nفي تخصص الوسائط المتعددة والرسوم المتحركة']],
   ];
