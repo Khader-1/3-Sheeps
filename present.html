@@ -1486,7 +1486,6 @@
       let rig;
       try { rig = await ex.loadCharacter(key, 'front'); } catch { break; }
       const holder = core.svgEl('g');
-      holder.style.display = 'none';
       holder.appendChild(rig.node);
       hopsBox.appendChild(holder);
       // Only the smallest is drawn in a T-pose; his brothers' arms already
@@ -1494,7 +1493,19 @@
       // on the key and so does this one.
       if (key === 'small') ex.restArms(rig);
       gait.buildLimbChains(rig);
+
+      // Measured while he is still being rendered, and hidden only afterwards.
+      // getBBox() needs a layout box, and a display:none subtree does not have
+      // one: measuring through it is unspecified, and what comes back can be
+      // an empty rect. That divides into the target height as Infinity, which
+      // is not a transform any browser will accept — so the whole attribute is
+      // dropped and the rig paints at its native Moho size, four times the
+      // frame and anchored wherever it happened to be. Nothing here flashes in
+      // the gap: the section is two moves away and still visibility:hidden.
       const rest = rig.bbox();
+      holder.style.display = 'none';
+      if (!rest.height || !rest.width) continue;   // never scale by 1/0
+
       ex.applyExpression(rig, i % 3 === 1 ? 'surprised' : 'happy');
       made.push({
         rig, holder, rest, busy: false,
@@ -1523,7 +1534,7 @@
     // turning end over end, so what has to fit is not his height but the
     // diagonal he sweeps, and at the top of the jump that is measured from an
     // apex already well above the middle.
-    const height = H * Math.max(0.105, Math.min(0.165, 0.175 - n * 0.008));
+    const height = H * Math.max(0.09, Math.min(0.13, 0.14 - n * 0.007));
     // Spread across the middle of the frame, tightening as the count grows so
     // that seven still fit inside 70% of the width without touching.
     const gap = n === 1 ? 0 : W * Math.min(0.16, 0.7 / (n - 1));
