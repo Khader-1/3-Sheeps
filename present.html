@@ -811,6 +811,41 @@
   }
   #s-end.on .runstrip { opacity: 1; }
 
+  /* ---- the credits ------------------------------------------------------
+     The thanks, the moral and the house hold for the length of the first
+     chase and then get out of the way, because from there on this slide has a
+     job: it is the credits. They come one card at a time in the middle of the
+     frame, the way the film's own do, and they keep coming — a presenter
+     talking over the end of a screening should never be standing in front of
+     a slide that has finished. */
+  #s-end .thanks { transition: opacity 1.4s ease; }
+  #s-end .thanks.gone { opacity: 0; }
+  .roll {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    text-align: center; pointer-events: none;
+  }
+  .roll .card {
+    position: absolute; opacity: 0; display: flex; gap: clamp(2em, 7vmin, 5em);
+    align-items: flex-start; justify-content: center;
+    transition: opacity .8s ease;
+  }
+  .roll .card.on { opacity: 1; }
+  .roll .entry { max-width: 15em; }
+  .roll .role {
+    font-size: clamp(13px, 1.9vmin, 25px); font-weight: 700; color: var(--muted);
+    letter-spacing: .04em; margin-bottom: .7em;
+  }
+  .roll .name {
+    font-family: 'Poster Display', sans-serif; font-weight: 800;
+    font-size: clamp(20px, 3.6vmin, 52px); line-height: 1.5; color: #FFF3C4;
+    -webkit-text-stroke: .055em #22160b; paint-order: stroke fill;
+    text-shadow: 0 .05em .2em rgba(0,0,0,.6);
+  }
+  /* The two closing cards are a paragraph rather than a credit, so they are
+     set smaller and on one column — a full sentence at name size reads as
+     shouting. */
+  .roll .card.block .name { font-size: clamp(16px, 2.5vmin, 34px); line-height: 1.75; }
+
   /* ---- and the drawings behind it -------------------------------------
      Three sheets from the making of the film, one per lap of the chase and
      in turn: the cast measured against each other, the scenes as a wall of
@@ -1154,11 +1189,12 @@
     <svg class="runstrip" id="runstrip" aria-hidden="true"></svg>
     <div style="z-index:1"><div class="kicker">٠٧</div></div>
     <div class="stage" style="z-index:1">
-      <div style="text-align:center">
+      <div class="thanks" id="thanks" style="text-align:center">
         <h1 class="titled">شكراً لكم</h1>
         <div class="sub" style="margin-top:1.2em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
         <div class="build" id="build"></div>
       </div>
+      <div class="roll" id="roll" aria-hidden="true"></div>
     </div>
     <div class="foot" style="z-index:1;justify-content:center"><span>كلية فلسطين التقنية — دير البلح</span></div>
   </section>
@@ -2705,6 +2741,14 @@
       faces: { wolf: 'terrified', sheep: 'determined' } },
   ];
   const RUN_CYCLE = RUN_PASSES.reduce((a, p) => a + p.dur + RUN_GAP, 0);
+  // And then they stay off for two minutes. Three crossings every fifteen
+  // seconds for as long as the section is up is not a running gag, it is
+  // wallpaper — the joke is worth telling twice in a talk, not twenty times.
+  // The quiet is also what the sheets are for.
+  const RUN_REST = 120;
+  const RUN_TOTAL = RUN_CYCLE + RUN_REST;
+  const ART_LEAD = 4;        // s into the rest before the first sheet
+  const ART_HOLD = 27;       // and how long each one holds
 
   const runBox = document.getElementById('runstrip');
   let runners = null, runRaf = 0, runWarm = null, runT0 = 0;
@@ -2796,6 +2840,71 @@
     at.appendChild(wrap);
     rig.node.appendChild(at);
     return at;
+  }
+
+  // ---- the credits --------------------------------------------------------
+  //
+  // Read off the film's own end titles, in the film's own order and pairing:
+  // two roles side by side, then the supervisor alone, then the two closing
+  // paragraphs. Right-hand column first, which in a right-to-left row is the
+  // one that comes first in the markup.
+  //
+  // Two things are corrected against what is burned into the video. «أحمد
+  // محمد خضير» is run together there as أحمدمحمد, and المهندسه wants a tied
+  // ta — المهندسة. Both are set here the way they should read.
+  const CREDITS = [
+    [['الفكرة العامة', 'أحمد محمد خضير'], ['قصة وسيناريو', 'فريق العمل']],
+    [['الرسم الرقمي / رسوم الحاسوب', 'أحمد محمد خضير'],
+     ['الرسوم الأولية (سكتشات)', 'فايز الحسنات\nمحمد الزبي']],
+    [['بناء الهيكل العظمي', 'طارق نصار'], ['تنفيذ التحريك', 'طارق نصار']],
+    [['تحت إشراف', 'المهندسة منال حجازي']],
+    [[null, 'كلية فلسطين التقنية — دير البلح\nقسم الحاسوب\nتخصص الوسائط المتعددة والرسوم المتحركة']],
+    [[null, 'مشروع تخرج مقدَّم استكمالاً لمتطلبات الحصول على درجة الدبلوم\nفي تخصص الوسائط المتعددة والرسوم المتحركة']],
+  ];
+  const THANKS_OUT = 4.2;    // s: the length of the first pass, and a beat
+  const CREDITS_AT = 5.9;    // and then the titles have the slide
+  const CARD_HOLD = 5.6;     // each one up, including its two fades
+  const rollBox = document.getElementById('roll');
+  const thanksEl = document.getElementById('thanks');
+  let rollCards = null, rollAt = -1;
+
+  function buildRoll() {
+    if (rollCards) return rollCards;
+    rollCards = CREDITS.map((entries) => {
+      const card = document.createElement('div');
+      card.className = 'card' + (entries[0][0] === null ? ' block' : '');
+      for (const [role, name] of entries) {
+        const e = document.createElement('div');
+        e.className = 'entry';
+        if (role) {
+          const r = document.createElement('div');
+          r.className = 'role';
+          r.textContent = role + ':';
+          e.appendChild(r);
+        }
+        const n = document.createElement('div');
+        n.className = 'name';
+        // Line breaks are meaningful here — two names under one role, and the
+        // closing paragraphs are set the way the film sets them.
+        name.split('\n').forEach((line, i) => {
+          if (i) n.appendChild(document.createElement('br'));
+          n.appendChild(document.createTextNode(line));
+        });
+        e.appendChild(n);
+        card.appendChild(e);
+      }
+      rollBox.appendChild(card);
+      return card;
+    });
+    return rollCards;
+  }
+
+  /** Bring card `i` up and take the rest down. -1 for none. */
+  function showCard(i) {
+    if (i === rollAt) return;
+    rollAt = i;
+    const cards = buildRoll();
+    cards.forEach((c, k) => c.classList.toggle('on', k === i));
   }
 
   // ---- the three sheets behind the chase ---------------------------------
@@ -3020,6 +3129,8 @@
     // last time's mark. Cleared here instead.
     showArt(-1);
     artShown = -1;
+    showCard(-1);
+    thanksEl.classList.remove('gone');
     if (!runners) return;
     runners.pass = undefined;
     for (const m of Object.values(runners.by)) {
@@ -3051,16 +3162,25 @@
     // moral and clear of the footer whatever the type does at this size.
     const gy = stage.offsetTop + stage.offsetHeight;
 
-    // One sheet per lap of the chase, in turn. Nothing on the first lap, so
-    // the section settles before it starts showing its workings — and nothing
-    // ever again after the last one, because the credits are read off this
-    // slide and they are not going to be read off a wall of storyboards. The
-    // chase keeps going underneath either way.
     const elapsed = (now - runT0) / 1000;
-    const i = Math.floor(elapsed / RUN_CYCLE) - 1;
-    showArt(i >= 0 && i < ART_ORDER.length ? i : -1);
 
-    const t = elapsed % RUN_CYCLE;
+    // The thanks, the moral and the house have the slide for the length of
+    // the first crossing, and then they go: from there on this is the credits.
+    thanksEl.classList.toggle('gone', elapsed > THANKS_OUT);
+    // Which come one card at a time and keep coming, round and round, because
+    // there is no telling how long the room will be on this slide.
+    showCard(elapsed < CREDITS_AT ? -1
+      : Math.floor((elapsed - CREDITS_AT) / CARD_HOLD) % CREDITS.length);
+
+    // The chase runs its three crossings and then rests for two minutes. The
+    // sheets fill that rest — one at a time, in turn — and are gone again
+    // before it comes back round, so the two are never both moving.
+    const inCycle = elapsed % RUN_TOTAL;
+    const rest = inCycle - RUN_CYCLE - ART_LEAD;
+    const si = Math.floor(rest / ART_HOLD);
+    showArt(rest >= 0 && si < ART_ORDER.length ? si : -1);
+
+    const t = inCycle;
     let acc = 0, pass = null, p = 0;
     for (const q of RUN_PASSES) {
       if (t >= acc && t < acc + q.dur) { pass = q; p = (t - acc) / q.dur; break; }
