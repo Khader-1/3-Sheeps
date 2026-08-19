@@ -236,27 +236,34 @@
     transform-box: fill-box;
     animation: 14s ease-in-out infinite;
   }
-  .crest .browL { transform-origin: 100% 50%; }
-  .crest .browR { transform-origin: 0% 50%; }
+  /* Pivot at the OUTER end, so the inner end is what rises or falls. Hung the
+     other way round the brow see-saws from the nose outward, which is the one
+     motion a face cannot make. */
+  .crest .browL { transform-origin: 0% 50%; }
+  .crest .browR { transform-origin: 100% 50%; }
   .crest .c-wolf .browL { animation-name: browMenaceL; }
   .crest .c-wolf .browR { animation-name: browMenaceR; }
   .crest .c-big .browL, .crest .c-mid .browL, .crest .c-small .browL { animation-name: browAlarmL; }
   .crest .c-big .browR, .crest .c-mid .browR, .crest .c-small .browR { animation-name: browAlarmR; }
+  /* Positive is clockwise on screen. Pivoting at the outer end, that drives
+     the left brow's inner end down and the right brow's inner end up — so the
+     two menace angles are opposite in sign, and the alarm pair is the inverse
+     of the menace pair. */
   @keyframes browMenaceL {
-    0%, 52%, 100% { rotate: 0deg; translate: 0 0; }
-    62%, 84%      { rotate: -9deg; translate: 0 1.1px; }
-  }
-  @keyframes browMenaceR {
     0%, 52%, 100% { rotate: 0deg; translate: 0 0; }
     62%, 84%      { rotate: 9deg; translate: 0 1.1px; }
   }
+  @keyframes browMenaceR {
+    0%, 52%, 100% { rotate: 0deg; translate: 0 0; }
+    62%, 84%      { rotate: -9deg; translate: 0 1.1px; }
+  }
   @keyframes browAlarmL {
     0%, 66%, 100% { rotate: 0deg; translate: 0 0; }
-    73%, 82%      { rotate: 8deg; translate: 0 -1.3px; }
+    73%, 82%      { rotate: -8deg; translate: 0 -1.3px; }
   }
   @keyframes browAlarmR {
     0%, 66%, 100% { rotate: 0deg; translate: 0 0; }
-    73%, 82%      { rotate: -8deg; translate: 0 -1.3px; }
+    73%, 82%      { rotate: 8deg; translate: 0 -1.3px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1427,12 +1434,23 @@
     };
 
     const EYE = '[data-part="العين"],[data-part="العين_2"],[data-part="ت_العين"],[data-part="ت_العين_2"]';
+    const BROW = '[data-part*="حاجب"]';
     for (const ch of box.querySelectorAll('.ch')) {
       // Only the outermost of each eye. The wolf's ت_العين contains a plain
       // العين, and blinking both scaled him twice.
-      [...ch.querySelectorAll(EYE)]
-        .filter((n) => !n.parentElement.closest(EYE))
-        .forEach((n) => wrap(n, 'eye'));
+      const eyes = [...ch.querySelectorAll(EYE)].filter((n) => !n.parentElement.closest(EYE));
+      for (const eye of eyes) {
+        // The wolf keeps his brow *inside* the eye group — WOLF_FACE calls it
+        // ت_العين_2/الحاجب — so wrapping the group wholesale put the brow in
+        // the blink and flattened it onto the eye every time he blinked.
+        // The sheep keep theirs outside and are wrapped whole.
+        const lids = [...eye.children].filter((n) => !n.matches(BROW) && !n.querySelector(BROW));
+        if (lids.length === eye.children.length) { wrap(eye, 'eye'); continue; }
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'eye');
+        eye.insertBefore(g, lids[0]);          // keeps the brow painting last
+        lids.forEach((n) => g.appendChild(n));
+      }
 
       // Which brow is which side has to be measured, not named: the sheep call
       // theirs _ش_/_ي_ and the wolf calls both of his الحاجب, so where they sit
