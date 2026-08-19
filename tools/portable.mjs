@@ -16,9 +16,12 @@
 //
 // The launcher tries Python and then Node, because between them one is on
 // almost every machine and neither needs installing on macOS with the
-// developer tools present. If neither is there the script says so in Arabic
-// rather than flashing a black window and vanishing, which is what a
-// double-clicked script that fails normally does.
+// developer tools present. If neither is there it says so and waits, rather
+// than flashing a black window and vanishing, which is what a double-clicked
+// script that fails normally does.
+//
+// The two launchers are not symmetrical and cannot be: bash reads UTF-8 and
+// bare LF happily, cmd.exe reliably does neither. See the note above WIN.
 //
 // The film is the reason this is 140 MB and not 10: it is 109 HLS segments.
 // They are left exactly as the site serves them, so the offline copy plays it
@@ -58,20 +61,68 @@ echo "ثبّت أحدهما ثم أعد المحاولة، أو افتح out/boo
 read -n 1 -s -r -p "اضغط أي مفتاح للإغلاق"
 `;
 
+// Written CRLF and in plain ASCII, and both of those are load-bearing.
+//
+// cmd.exe reads a batch file line by line by byte offset, and a file with bare
+// LF endings leaves it seeking to the wrong place: the first run of this said
+// "'PORT' is not recognized" and "cannot find the batch label specified", the
+// two classic symptoms. Every line here ends CRLF — see toCrlf below.
+//
+// And no Arabic. cmd parses the file with whatever codepage is active when it
+// opens it, which chcp on line two is already too late to change, so Arabic in
+// an echo is unreliable in exactly the way that wastes ten minutes before a
+// defence. The Arabic lives in اقرأني.txt, which is read in an editor.
+//
+// No parenthesised blocks either. `& goto :eof)` glues the closing paren onto
+// the label name; plain labels and `exit /b` cannot misparse.
+//
+// py -3 is listed first because the Windows Python launcher is what an
+// installation from python.org actually puts on PATH — python3 usually is not
+// a command there at all, and bare `python` may be the Store stub that opens
+// the Store instead of running anything.
 const WIN = `@echo off
-chcp 65001 >nul
+setlocal
 cd /d "%~dp0"
-set PORT=${PORT}
-echo .يجهّز العرض
+set "PORT=${PORT}"
+echo Starting the presentation...
 start "" "http://localhost:%PORT%/present.html"
-where python3 >nul 2>&1 && (python3 -m http.server %PORT% & goto :eof)
-where python  >nul 2>&1 && (python  -m http.server %PORT% & goto :eof)
-where node    >nul 2>&1 && (node server.mjs %PORT% & goto :eof)
+
+where py      >nul 2>&1 && goto :py
+where python  >nul 2>&1 && goto :python
+where python3 >nul 2>&1 && goto :python3
+where node    >nul 2>&1 && goto :node
+goto :none
+
+:py
+py -3 -m http.server %PORT%
+goto :done
+
+:python
+python -m http.server %PORT%
+goto :done
+
+:python3
+python3 -m http.server %PORT%
+goto :done
+
+:node
+node server.mjs %PORT%
+goto :done
+
+:none
 echo.
-echo لم يُعثر على Python أو Node على هذا الجهاز.
-echo ثبّت أحدهما ثم أعد المحاولة، أو افتح out\\book.html مباشرة.
+echo Python or Node is required, and neither was found.
+echo Install either one, then run this again.
+echo Or open  out\\book.html  directly - the book works on its own.
+echo.
 pause
+
+:done
+endlocal
 `;
+
+/** cmd.exe needs CRLF; bash does not care either way. */
+const toCrlf = (s) => s.replace(/\r?\n/g, '\r\n');
 
 // The Node fallback. Deliberately tiny and dependency-free — it is a last
 // resort, not the project's server.
@@ -136,6 +187,10 @@ const README = `الخراف الثلاثة والذئب الماكر
 
 ملاحظة: أول مرة بتشغّل، بيطلب ماك إذن للاتصال بالشبكة المحلية — وافق.
 السيرفر بيشتغل على جهازك فقط ولا بيرسل شي لبرّا.
+
+على ويندوز، الشاشة السودا بتطلع رسائلها بالإنجليزي — هيك مقصود، لأن cmd
+بيخربط العربي حسب إعدادات الجهاز. خليها مفتوحة طول العرض؛ لما تسكّرها
+بيوقف السيرفر.
 `;
 
 function copyDir(from, to) {
@@ -161,7 +216,7 @@ copyDir(DIST, STAGE);
 // defence, so they do not depend on the fix being honoured.
 fs.writeFileSync(path.join(STAGE, 'START-HERE.command'), MAC);
 fs.chmodSync(path.join(STAGE, 'START-HERE.command'), 0o755);
-fs.writeFileSync(path.join(STAGE, 'START-HERE.bat'), WIN);
+fs.writeFileSync(path.join(STAGE, 'START-HERE.bat'), toCrlf(WIN));
 fs.writeFileSync(path.join(STAGE, 'server.mjs'), SERVER);
 fs.writeFileSync(path.join(STAGE, 'اقرأني.txt'), README);
 
