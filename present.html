@@ -119,9 +119,17 @@
      Four characters, and nothing is allowed to fall into step: the blink and
      ear periods are all mutually prime-ish, so the cluster never pulses. */
   .crest { display: block; }
-  .crest svg { width: 100%; height: auto; display: block; }
+  /* Overflow visible so she can actually leave. The lockup is drawn to fit its
+     own 512 box exactly, which left her 9.8% of the width before the viewport
+     cut her off — less than she needs to look like she is running. */
+  .crest svg { width: 100%; height: auto; display: block; overflow: visible; }
 
-  .crest .ch { animation: breathe 5.5s ease-in-out infinite; }
+  /* fill-box, so a percentage means a percentage of that character. Left on
+     the default view-box, translate percentages resolve against the root 512
+     viewport and are then scaled down by whatever put() scaled the character
+     to — so 15.5% moved the smallest sheep nine pixels instead of forty, and
+     every amount in this section was quietly a fifth of what it read as. */
+  .crest .ch { transform-box: fill-box; animation: breathe 5.5s ease-in-out infinite; }
   .crest .c-mid   { animation-duration: 6.3s; animation-delay: -1.4s }
   .crest .c-small { animation-duration: 5.9s; animation-delay: -3.1s }
   .crest .c-wolf  { animation-duration: 7.1s; animation-delay: -2.2s }
@@ -137,7 +145,21 @@
     animation: blink 5.3s ease-in-out infinite;
   }
   .crest .c-mid   .eye { animation-duration: 6.1s; animation-delay: -2.4s }
-  .crest .c-small .eye { animation-duration: 7.3s; animation-delay: -4.9s }
+  /* Hers come off the ordinary blink clock and onto the scene's, because she
+     has to be shut at a particular moment rather than every seven seconds.
+     Two ordinary blinks early on, then squeezed shut while he is over her —
+     held, not flickering, which is what frightened looks like. */
+  .crest .c-small .eye { animation: eyesShut 14s ease-in-out infinite; }
+  /* .05 collapsed the whole eye to nothing and left a gap in her face. Shut
+     is not absent: the lid has to stay wide and become a line, so it flattens
+     to .16 — about a pixel at the size this is shown, enough for the dark
+     outline to draw right across the socket. Blinks can go thinner because
+     nobody sees a blink. */
+  @keyframes eyesShut {
+    0%, 17%, 19%, 44%, 46%, 59%, 86%, 100% { scale: 1 1; }
+    18%, 45%                               { scale: 1 .1; }
+    62%, 84%                               { scale: 1 .16; }
+  }
   .crest .c-wolf  .eye { animation-duration: 8.9s; animation-delay: -1.1s }
   @keyframes blink {
     0%, 92%, 100% { scale: 1 1; }
@@ -182,9 +204,9 @@
   @keyframes stalk {
     0%, 26%   { translate: 0 0; }
     27%, 40%  { translate: -1.8px 0; }
-    41%, 55%  { translate: 1.8px 0; }
-    56%, 86%  { translate: 0 2.2px; }   /* fixed on them, and held there */
-    87%, 100% { translate: 0 0; }
+    41%, 53%  { translate: 1.8px 0; }
+    54%, 74%  { translate: 2.3px 2.3px; }   /* on her: down, and to his right */
+    75%, 100% { translate: 0 0; }
   }
   @keyframes glance {
     0%, 30%   { translate: 0 0; }
@@ -196,33 +218,80 @@
   }
 
   /* ---- and once in a while, he tries it -------------------------------
-     Every fourteen seconds the wolf leans down at them and the three of them
-     flinch away and come back. One shared clock so it lands as a single
-     event: he moves first, they answer a beat later. Outward as well as
-     down — the two behind break left and right, the eldest just drops. */
-  .crest .c-wolf { animation: breathe 7.1s ease-in-out infinite, lunge 14s ease-in-out infinite; }
-  .crest .c-big   { animation: breathe 5.5s ease-in-out infinite, flinchC 14s ease-in-out infinite; }
-  .crest .c-mid   { animation: breathe 6.3s ease-in-out infinite -1.4s, flinchL 14s ease-in-out infinite; }
-  .crest .c-small { animation: breathe 5.9s ease-in-out infinite -3.1s, flinchR 14s ease-in-out infinite; }
-  @keyframes lunge {
-    0%, 62%, 100% { translate: 0 0; scale: 1; }
-    70%           { translate: 0 2.4%; scale: 1.045; }
-    78%           { translate: 0 1.2%; scale: 1.02; }
+     Not four characters nudging at the same time — a scene, on one clock, with
+     an order to it. He picks the white one, the smallest and the nearest to
+     him; she shuts her eyes; the brown one gets out of the way; and the eldest
+     comes up off the bottom of the frame at him and he backs off.
+
+     Read down the percentages and it plays in order:
+
+       55  his eyes fix on her, down and to his right
+       58  he leans in at her, growing
+       62  her eyes clamp shut, she breaks away down-right, brows up
+       66  the brown one breaks left, brows up
+       72  the eldest drives up at him, brows down
+       78  he gives, and goes back further than he came
+       88  everyone settles
+
+     They move further than he does, and they should: he is one animal leaning
+     and there are three of them reacting, and a flinch that reads as smaller
+     than the threat that caused it reads as nothing at all. */
+  .crest .c-wolf  { animation: breathe 7.1s ease-in-out infinite, lungeWolf 14s linear infinite; }
+  .crest .c-small { animation: breathe 5.9s ease-in-out infinite -3.1s, fleeSmall 14s linear infinite; }
+  .crest .c-mid   { animation: breathe 6.3s ease-in-out infinite -1.4s, fleeMid 14s linear infinite; }
+  .crest .c-big   { animation: breathe 5.5s ease-in-out infinite, chargeBig 14s linear infinite; }
+
+  /* The shorthand says linear and every interval sets its own curve instead.
+     A lunge is not an ease-in-out: it is still, then it is fast, then it holds
+     — the attack here is half a second and the recovery takes four times that.
+     Softening the attack was what made the first version read as drifting
+     rather than striking. */
+  /* Measured, not guessed: the eldest's head starts 8.7% of the frame's height
+     below the wolf's chin, so anything under that never reaches him. He goes
+     to 12.5% and drives up into him — and the wolf's retreat begins on that
+     frame, not before. He does not back off because he thinks better of it;
+     he is shoved. */
+  @keyframes lungeWolf {
+    0%, 56% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.35,0,.25,1); }
+    60%     { translate: 24% 26%; scale: 1.10;
+              animation-timing-function: ease-out; }
+    70%     { translate: 21% 23%; scale: 1.09;
+              animation-timing-function: cubic-bezier(.15,0,.2,1); }   /* hit */
+    75%     { translate: -15% -30%; scale: .95;
+              animation-timing-function: cubic-bezier(.3,0,.3,1); }
+    90%, 100% { translate: 0 0; scale: 1; }
   }
-  @keyframes flinchC {
-    0%, 66%, 100% { translate: 0 0; }
-    73%           { translate: 0 1.9%; }
-    82%           { translate: 0 .5%; }
+  /* She bolts, and recedes as she goes — the shrink is what turns a slide
+     sideways into running away. */
+  @keyframes fleeSmall {
+    0%, 59% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.3,0,.2,1); }
+    64%     { translate: 62% 22%; scale: .93;
+              animation-timing-function: ease-out; }
+    80%     { translate: 56% 20%; scale: .94;
+              animation-timing-function: cubic-bezier(.3,0,.3,1); }
+    93%, 100% { translate: 0 0; scale: 1; }
   }
-  @keyframes flinchL {
-    0%, 66%, 100% { translate: 0 0; }
-    73%           { translate: -2.1% 1.3%; }
-    82%           { translate: -.6% .3%; }
+  @keyframes fleeMid {
+    0%, 61% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.3,0,.2,1); }
+    65%     { translate: -52% 17%; scale: .96;
+              animation-timing-function: ease-out; }
+    80%     { translate: -46% 15%; scale: .965;
+              animation-timing-function: cubic-bezier(.3,0,.3,1); }
+    93%, 100% { translate: 0 0; scale: 1; }
   }
-  @keyframes flinchR {
-    0%, 66%, 100% { translate: 0 0; }
-    73%           { translate: 2.1% 1.3%; }
-    82%           { translate: .6% .3%; }
+  /* Up, into him, past the point where they meet. The one who built in brick
+     is not going anywhere. */
+  @keyframes chargeBig {
+    0%, 64% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.35,0,.2,1); }
+    70%     { translate: 0 -50%; scale: 1.12;
+              animation-timing-function: ease-out; }
+    82%     { translate: 0 -43%; scale: 1.10;
+              animation-timing-function: cubic-bezier(.3,0,.3,1); }
+    94%, 100% { translate: 0 0; scale: 1; }
   }
 
   /* The brows carry the beat as much as the eyes do — a lunge with a blank
@@ -267,11 +336,33 @@
   .crest .c-wolf .browL { transform: translateY(-16px) rotate(-22deg); }
   .crest .c-wolf .browR { transform: translateY(-16px) rotate(22deg); }
   @keyframes browPress {
-    0%, 52%, 100% { translate: 0 0; }
-    62%, 84%      { translate: 0 2.2px; }
+    0%, 56%, 88%, 100% { translate: 0 0; }
+    60%, 72%           { translate: 0 2.8px; }
   }
-  .crest .c-big .browL, .crest .c-mid .browL, .crest .c-small .browL { animation-name: browAlarmL; }
-  .crest .c-big .browR, .crest .c-mid .browR, .crest .c-small .browR { animation-name: browAlarmR; }
+  /* Three reactions, not one. She is terrified, he is afraid, and the eldest
+     is angry — which on a brow is the same axis in the other direction. */
+  .crest .c-small .browL { animation-name: browTerrorL; }
+  .crest .c-small .browR { animation-name: browTerrorR; }
+  .crest .c-mid   .browL { animation-name: browAlarmL; }
+  .crest .c-mid   .browR { animation-name: browAlarmR; }
+  .crest .c-big   .browL { animation-name: browAngryL; }
+  .crest .c-big   .browR { animation-name: browAngryR; }
+  @keyframes browTerrorL {
+    0%, 59%, 92%, 100% { rotate: 0deg; translate: 0 0; }
+    63%, 84%           { rotate: -15deg; translate: 0 -2.4px; }
+  }
+  @keyframes browTerrorR {
+    0%, 59%, 92%, 100% { rotate: 0deg; translate: 0 0; }
+    63%, 84%           { rotate: 15deg; translate: 0 -2.4px; }
+  }
+  @keyframes browAngryL {
+    0%, 65%, 93%, 100% { rotate: 0deg; translate: 0 0; }
+    69%, 86%           { rotate: 14deg; translate: 0 1.7px; }
+  }
+  @keyframes browAngryR {
+    0%, 65%, 93%, 100% { rotate: 0deg; translate: 0 0; }
+    69%, 86%           { rotate: -14deg; translate: 0 1.7px; }
+  }
   /* Positive is clockwise on screen. Pivoting at the outer end, that drives
      the left brow's inner end down and the right brow's inner end up — so the
      two menace angles are opposite in sign, and the alarm pair is the inverse
@@ -285,12 +376,12 @@
     62%, 84%      { rotate: -9deg; translate: 0 1.1px; }
   }
   @keyframes browAlarmL {
-    0%, 66%, 100% { rotate: 0deg; translate: 0 0; }
-    73%, 82%      { rotate: -8deg; translate: 0 -1.3px; }
+    0%, 61%, 93%, 100% { rotate: 0deg; translate: 0 0; }
+    65%, 82%           { rotate: -11deg; translate: 0 -1.8px; }
   }
   @keyframes browAlarmR {
-    0%, 66%, 100% { rotate: 0deg; translate: 0 0; }
-    73%, 82%      { rotate: 8deg; translate: 0 -1.3px; }
+    0%, 61%, 93%, 100% { rotate: 0deg; translate: 0 0; }
+    65%, 82%           { rotate: 11deg; translate: 0 -1.8px; }
   }
 
   /* Reduced motion means no motion that can make somebody ill — the backdrop
