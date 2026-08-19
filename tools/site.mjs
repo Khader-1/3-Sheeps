@@ -33,6 +33,10 @@ const EXCLUDE = [
   // them and tools/book.mjs inlines the result into out/book.html, which is
   // the only form the site serves.
   /^assets\/incoming\/كتاب\//,
+  // The delivered trailers as exported, 64 MB between them. tools/promos.mjs
+  // re-encodes them to out/promo-N.mp4, and those are what the deck plays —
+  // these two are each on their own past the 25 MiB Cloudflare Pages allows.
+  /^assets\/incoming\/إعلانات\//,
   /^tools\//,            // the pipeline itself is not served
   /^README\.md$/,
   /^\.nojekyll$/,        // a GitHub Pages concern; Cloudflare has no Jekyll
@@ -54,9 +58,12 @@ const DELIVERABLES = [
   'out/poster-wide-bg.svg',
   'out/poster-wide-fg.svg',
   'out/poster-wide.png',
-  'out/promo.mp4',
-  // The second trailer, delivered finished and re-encoded by tools/promos.mjs
-  // to fit under the 25 MiB Cloudflare Pages refuses to exceed.
+  // Both trailers, delivered finished and re-encoded by tools/promos.mjs to
+  // fit under the 25 MiB Cloudflare Pages refuses to exceed. out/promo.mp4 —
+  // the teaser this project draws and scores itself — is deliberately absent:
+  // the deck shows these two instead, and 14 MB nothing requests is 14 MB.
+  // `node tools/render.mjs promo` still makes it.
+  'out/promo-1.mp4',
   'out/promo-2.mp4',
   'out/promo-narrated.mp4',
   'out/book.html',
