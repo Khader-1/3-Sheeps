@@ -241,8 +241,35 @@
      motion a face cannot make. */
   .crest .browL { transform-origin: 0% 50%; }
   .crest .browR { transform-origin: 100% 50%; }
-  .crest .c-wolf .browL { animation-name: browMenaceL; }
-  .crest .c-wolf .browR { animation-name: browMenaceR; }
+  /* The wolf's brow is not an arc above the eye the way the sheep's are — it
+     is the angular scowl line, and it is drawn across and beside the eye,
+     overlapping it by about a third of its own height. Rotating a shape like
+     that about either end sweeps it over the pupil. So his presses straight
+     down instead: same reading, none of the sweep. */
+  /* And lifted clear of the eye. His الحاجب is not an arc over the socket the
+     way the sheep's are — it is a diagonal crease drawn from above the outer
+     corner down across and under the eye, so at rest it reads as a line
+     through the middle of the eye rather than a brow over it. 26 user units
+     up puts the whole crease above the lid. On the wrapper's transform, not
+     its translate, so it composes with the animation instead of fighting it. */
+  .crest .c-wolf .brow {
+    animation-name: browPress;
+    transform-origin: 50% 50%;
+    /* Rotated first, then moved — which is what those two functions do, read
+       right to left.
+       The rotation drops the outer end and lifts the inner one, which turns
+       the crease into a brow angled down toward the nose. Turning it the other
+       way steepens the existing slope instead, and 30 units of lift on top of
+       that swept the outer ends up into the ears — raised in surprise, which
+       is not this character. 16 units is then enough to clear the lid; more
+       and it stops being a brow and becomes a headband. */
+  }
+  .crest .c-wolf .browL { transform: translateY(-16px) rotate(-22deg); }
+  .crest .c-wolf .browR { transform: translateY(-16px) rotate(22deg); }
+  @keyframes browPress {
+    0%, 52%, 100% { translate: 0 0; }
+    62%, 84%      { translate: 0 2.2px; }
+  }
   .crest .c-big .browL, .crest .c-mid .browL, .crest .c-small .browL { animation-name: browAlarmL; }
   .crest .c-big .browR, .crest .c-mid .browR, .crest .c-small .browR { animation-name: browAlarmR; }
   /* Positive is clockwise on screen. Pivoting at the outer end, that drives
@@ -266,8 +293,20 @@
     73%, 82%      { rotate: 8deg; translate: 0 -1.3px; }
   }
 
+  /* Reduced motion means no motion that can make somebody ill — the backdrop
+     drifting and zooming, and four characters lurching across the frame. It
+     does not mean a corpse. A blink, an ear, a pupil: these move a couple of
+     pixels in place and trigger nothing, and switching them off was what made
+     the title slide read as a frozen screenshot to anyone who has the setting
+     on. Keep the face, drop the travel. */
+  /* Reduced motion drops the backdrop, and only the backdrop. That is the one
+     thing here big enough to make somebody ill — a blurred photograph the size
+     of the screen panning and swelling. The characters move a couple of
+     percent of their own height in place, which triggers nothing, and killing
+     their motion was what made the slide read as a dead frame to anyone with
+     the setting on. The lunge is the point of the slide; it stays. */
   @media (prefers-reduced-motion: reduce) {
-    .bg-poster, .crest *, .crest { animation: none !important; }
+    .bg-poster { animation: none; }
   }
   .vignette { position: absolute; inset: 0; z-index: 0;
     background: radial-gradient(ellipse at center, transparent 25%, rgba(4,8,3,.86) 78%); }
