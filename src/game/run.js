@@ -11,7 +11,7 @@ import { svgEl } from '../rig.js';
 import { loadScene } from '../anim/stage.js';
 import { houseNode } from './house-art.js';
 import { loadCharacter, applyExpression, restArms, REST_ARMS } from '../expressions.js';
-import { buildLimbChains, limbPivots } from '../anim/gait.js';
+import { buildLimbChains, limbPivots, stride } from '../anim/gait.js';
 import { W, H, CREAM, GREEN, RED, clamp01, rnd, panel, label, button, scrim, backChip, banner, view, coverView, onViewChange, band, fitGround } from './ui.js';
 
 export const meta = {
@@ -56,7 +56,6 @@ const GOAL = 3800;
 const HOUSE_H = 430;
 const GRAVITY = 2100;
 const JUMP_V = 780;
-const TAU = Math.PI * 2;
 /** The smallest sheep is drawn in a T-pose; his arms need a rest angle. */
 const REST_ARMS_SMALL = [REST_ARMS['اليد_ش'], REST_ARMS['اليد_ي']];
 
@@ -110,7 +109,6 @@ export async function start(ctx) {
   layers.world.appendChild(wolfHolder);
   wolfHolder.appendChild(wolf.node);
   applyExpression(wolf, 'menacing');
-  const wolfLimbs = buildLimbChains(wolf);
   wolf.place({ x: WOLF_X, y: GROUND + 26, height: 300, flip: false });
 
   // Rocks live in the world layer with the runner, not in the scenery: they
@@ -181,46 +179,6 @@ export async function start(ctx) {
     origDestroy();
   };
 
-  // ---------------------------------------------------------------- pose
-  /**
-   * Pose a rig's limbs from a stride phase. Same maths as addWalk, per frame.
-   *
-   * `armBase` is the rest angle of the arms and belongs to the character, not
-   * to the animation: the smallest sheep is drawn in a T-pose and needs his
-   * arms swung down, the wolf's already hang correctly. Applying the sheep's
-   * −54°/+56° to the wolf stuck his arm straight out in front of him.
-   *
-   * Pivots come from limbPivots(), which measures each joint from where the
-   * parts actually overlap. Bounding-box fractions were close enough for the
-   * sheep's straight limbs and badly wrong for the wolf's bent ones, which is
-   * what detached his legs from his body.
-   */
-  function stride(rig, lb, phase, swing, bob, armBase = [0, 0]) {
-    const cyc = phase * TAU;
-    const a = Math.sin(cyc), b = Math.sin(cyc + Math.PI);
-    const piv = limbPivots(rig);
-
-    lb.legs.forEach((leg, i) => rig.pose(leg, {
-      rotate: (i === 0 ? a : b) * swing, pivot: piv.legs[i] || [0.5, 0.04],
-    }));
-    lb.mids.forEach((mid, i) => {
-      if (!rig.has(mid)) return;
-      const s = Math.sin(cyc + (i === 0 ? -1 : 1) * Math.PI / 2);
-      rig.pose(mid, {
-        rotate: Math.max(0, s) * swing * 0.7, pivot: piv.mids[i] || [0.5, 0.06],
-      });
-    });
-    lb.arms.forEach((arm, i) => {
-      const base = armBase[i] || 0;
-      rig.pose(arm, {
-        rotate: base + (i === 0 ? b : a) * swing * 0.5,
-        pivot: base ? (i === 0 ? [1, 0.4] : [0, 0.4]) : (piv.arms[i] || [0.5, 0.05]),
-      });
-    });
-    if (rig.has('الجسم')) rig.pose('الجسم', { rotate: a * 2.4 + 4, pivot: [0.5, 0.9] });
-    return -Math.abs(Math.sin(cyc)) * bob + bob * 0.5;
-  }
-
   // ---------------------------------------------------------------- loop
   const hud = svgEl('g');
   const barW = 420;
@@ -259,7 +217,7 @@ export async function start(ctx) {
 
       // The world has stopped; only the wolf still moves.
       gap += SPEED * 0.72 * dt;
-      const wolfBobDown = stride(wolf, wolfLimbs, (gap + dist) / 210, 22, 6);
+      const wolfBobDown = stride(wolf, (gap + dist) / 210, { swing: 22, bob: 6 });
       wolfHolder.setAttribute('transform', `translate(${rnd(gap)} ${rnd(wolfBobDown)})`);
       if (gap >= START_GAP - 52) return caught();
       return;
@@ -300,12 +258,12 @@ export async function start(ctx) {
       runHolder.setAttribute('transform',
         `translate(0 ${rnd(-y + k * 16)}) rotate(${rnd(pitch)} ${RUNNER_X} ${GROUND})`);
     } else {
-      const bobY = stride(runner, limbs, dist / 170, 30, 5, REST_ARMS_SMALL);
+      const bobY = stride(runner, dist / 170, { swing: 30, bob: 5, armBase: REST_ARMS_SMALL });
       runHolder.setAttribute('transform', `translate(0 ${rnd(-y + (y > 0 ? 0 : bobY))})`);
     }
 
     // The wolf keeps his pace and closes the gap the sheep gave away.
-    const wolfBob = stride(wolf, wolfLimbs, dist / 210, 22, 6);   // his arms already hang
+    const wolfBob = stride(wolf, dist / 210, { swing: 22, bob: 6 });  // his arms already hang
     wolfHolder.setAttribute('transform',
       `translate(${rnd(Math.sin(dist / 260) * 6 + gap)} ${rnd(wolfBob)})`);
 

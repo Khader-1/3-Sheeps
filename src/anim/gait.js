@@ -114,7 +114,17 @@ const LIMB_SETS = [
 export function buildLimbChains(rig) {
   if (rig._limbs) return rig._limbs;
 
-  const set = LIMB_SETS.find((s) => s.legs.some(([g]) => rig.has(g)));
+  // Best fit, not first fit. The sets overlap: a sheep in profile has الرجل_ق
+  // and اليد_ق, and so does the wolf, so "the first set with any leg in it"
+  // handed every side-view sheep the wolf's rig. Half its groups then did not
+  // exist and the other half were chained against the wolf's child names,
+  // which throw and are swallowed — leaving a sheep with one leg, no arms and
+  // pivots measured off the wrong parts. Counting how many of a set's groups
+  // the rig actually has separates them cleanly: 4 against 2, either way.
+  const set = LIMB_SETS
+    .map((s) => ({ s, n: [...s.legs, ...s.arms].filter(([g]) => rig.has(g)).length }))
+    .filter((c) => c.n > 0)
+    .sort((a, b) => b.n - a.n)[0]?.s;
   const limbs = { legs: [], arms: [], mids: [], set: set ? set.name : 'none' };
 
   if (set) {
@@ -134,6 +144,66 @@ export function buildLimbChains(rig) {
 
   rig._limbs = limbs;
   return limbs;
+}
+
+/**
+ * Pose a rig's limbs at one point in a stride, and report the body's bob.
+ *
+ * addWalk() below owns the whole walk — it drives travel, timing and easing
+ * from a timeline. This is the same cycle with none of that: one frame, posed
+ * from a phase the caller supplies, for anything driven by distance or by an
+ * rAF loop rather than by a timeline. «اهرب» advances the phase with the
+ * ground so the legs stay in step whatever the speed, and the poster section
+ * runs it off wall-clock.
+ *
+ * `armBase` is the rest angle of the arms and belongs to the character, not to
+ * the animation: the smallest sheep's front view is drawn in a T-pose and
+ * needs his arms swung down, while every side view's already hang correctly.
+ * Applying the sheep's −54°/+56° to the wolf stuck his arm straight out in
+ * front of him.
+ *
+ * Pivots come from limbPivots(), which measures each joint from where the
+ * parts actually overlap. Bounding-box fractions were close enough for the
+ * sheep's straight limbs and badly wrong for the wolf's bent ones, which is
+ * what detached his legs from his body.
+ *
+ * @param {Rig} rig
+ * @param {number} phase   stride cycles, fractional; 1 is a full two-step
+ * @param {object} [o]
+ * @param {number} [o.swing]   thigh swing, degrees
+ * @param {number} [o.bob]     vertical bob amplitude, scene units
+ * @param {number} [o.lean]    constant forward lean of the torso, degrees
+ * @param {number} [o.rock]    torso rock amplitude, degrees
+ * @param {number} [o.amp]     0..1 overall amplitude, for easing into a stop
+ * @param {[number,number]} [o.armBase]
+ * @returns {number} the body's vertical offset this frame
+ */
+export function stride(rig, phase, o = {}) {
+  const { swing = 22, bob = 5, lean = 4, rock = 2.4, amp = 1, armBase = [0, 0] } = o;
+  const lb = buildLimbChains(rig);
+  const piv = limbPivots(rig);
+  const cyc = phase * TAU;
+  const a = Math.sin(cyc) * amp, b = Math.sin(cyc + Math.PI) * amp;
+
+  lb.legs.forEach((leg, i) => rig.pose(leg, {
+    rotate: (i === 0 ? a : b) * swing, pivot: piv.legs[i] || [0.5, 0.04],
+  }));
+  lb.mids.forEach((mid, i) => {
+    if (!rig.has(mid)) return;
+    const s = Math.sin(cyc + (i === 0 ? -1 : 1) * Math.PI / 2) * amp;
+    rig.pose(mid, {
+      rotate: Math.max(0, s) * swing * 0.7, pivot: piv.mids[i] || [0.5, 0.06],
+    });
+  });
+  lb.arms.forEach((arm, i) => {
+    const base = armBase[i] || 0;
+    rig.pose(arm, {
+      rotate: base + (i === 0 ? b : a) * swing * 0.5,
+      pivot: base ? (i === 0 ? [1, 0.4] : [0, 0.4]) : (piv.arms[i] || [0.5, 0.05]),
+    });
+  });
+  if (rig.has('الجسم')) rig.pose('الجسم', { rotate: a * rock + lean, pivot: [0.5, 0.9] });
+  return (-Math.abs(Math.sin(cyc)) * bob + bob * 0.5) * amp;
 }
 
 /**

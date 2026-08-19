@@ -50,6 +50,22 @@ const WOLF_FACE = {
   body: 'الجسم',
 };
 
+// The sheep in profile. Drawn like the wolf's side view — one eye, one brow,
+// everything under الراس — but with no mouth part at all, so there is nothing
+// for a mouth shape to drive and express() simply leaves it alone.
+//
+// browPivot because they face the other way. A brow rotates about its outer
+// end so the inner tip carries the read, and "outer" is the back of the head:
+// the wolf's is his right, a sheep's is his left.
+const SHEEP_SIDE_FACE = {
+  brow: 'الراس/الحاجب',
+  eye: 'الراس/العين',
+  pupil: 'الراس/العين/العدسه',
+  browPivot: [0, 0.5],
+  head: 'الراس',
+  body: 'الجسم',
+};
+
 const WOLF_SIDE_FACE = {
   brow: 'الراس/الحاجب',
   eye: 'الراس/العين',
@@ -89,7 +105,11 @@ export async function loadCharacter(key, view = 'front') {
     }
     rig.face = { ...SHEEP_FACE, head };
   } else {
-    rig.face = { head: 'الراس', body: 'الجسم' };
+    // A sheep in profile. This used to be head and body and nothing else, so
+    // every expression applied to one silently did nothing — no blink, no
+    // gaze, no brow — which is a large part of why the side views went unused
+    // for as long as they did.
+    rig.face = { ...SHEEP_SIDE_FACE };
   }
 
   rig.key = key;
@@ -175,7 +195,7 @@ export function express(rig, o = {}) {
   });
   setBrow(f.browL, +1);
   setBrow(f.browR, -1);
-  if (f.brow) put(f.brow, { rotate: brow, y: browLift, pivot: [1, 0.5] });
+  if (f.brow) put(f.brow, { rotate: brow, y: browLift, pivot: f.browPivot || [1, 0.5] });
 
   for (const p of [f.pupilL, f.pupilR, f.pupil]) put(p, { x: gaze[0], y: gaze[1] });
 
