@@ -33,7 +33,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
 const NAME = 'الخراف-الثلاثة-محمول';
 const STAGE = path.join(ROOT, 'out', NAME);
-const ZIP = path.join(ROOT, 'out', `${NAME}.zip`);
+// The zip itself is named in ASCII. GitHub strips non-Latin characters out of
+// a release asset's filename, and an Arabic one arrives as "-.-.zip"; the
+// folder inside keeps its real name, which is what anyone sees after
+// unpacking it.
+const ZIP = path.join(ROOT, 'out', 'sheeps-offline.zip');
 const PORT = 8123;
 
 // A launcher has to survive being double-clicked from Finder, where the working
@@ -166,7 +170,7 @@ let files = 0;
 (function count(d) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) e.isDirectory() ? count(path.join(d, e.name)) : files++;
 })(STAGE);
-console.log(`portable  out/${NAME}.zip  (${files} files, ${mb(ZIP)} MB)`);
+console.log(`portable  out/${path.basename(ZIP)}  (${files} files, ${mb(ZIP)} MB)`);
 
 if (process.argv.includes('--release')) {
   const tag = 'portable';
