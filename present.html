@@ -156,9 +156,9 @@
      outline to draw right across the socket. Blinks can go thinner because
      nobody sees a blink. */
   @keyframes eyesShut {
-    0%, 17%, 19%, 44%, 46%, 59%, 86%, 100% { scale: 1 1; }
+    0%, 17%, 19%, 44%, 46%, 56%, 86%, 100% { scale: 1 1; }
     18%, 45%                               { scale: 1 .1; }
-    62%, 84%                               { scale: 1 .16; }
+    59%, 84%                               { scale: 1 .16; }
   }
   .crest .c-wolf  .eye { animation-duration: 8.9s; animation-delay: -1.1s }
   @keyframes blink {
@@ -204,8 +204,8 @@
   @keyframes stalk {
     0%, 26%   { translate: 0 0; }
     27%, 40%  { translate: -1.8px 0; }
-    41%, 53%  { translate: 1.8px 0; }
-    54%, 74%  { translate: 2.3px 2.3px; }   /* on her: down, and to his right */
+    41%, 51%  { translate: 1.8px 0; }
+    52%, 74%  { translate: 2.3px 2.3px; }   /* on her: down, and to his right */
     75%, 100% { translate: 0 0; }
   }
   @keyframes glance {
@@ -252,11 +252,11 @@
      frame, not before. He does not back off because he thinks better of it;
      he is shoved. */
   @keyframes lungeWolf {
-    0%, 56% { translate: 0 0; scale: 1;
+    0%, 54% { translate: 0 0; scale: 1;
               animation-timing-function: cubic-bezier(.35,0,.25,1); }
-    60%     { translate: 24% 26%; scale: 1.10;
+    60%     { translate: 30% 15%; scale: 1.10;
               animation-timing-function: ease-out; }
-    70%     { translate: 21% 23%; scale: 1.09;
+    70%     { translate: 27% 13%; scale: 1.09;
               animation-timing-function: cubic-bezier(.15,0,.2,1); }   /* hit */
     75%     { translate: -15% -30%; scale: .95;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
@@ -265,18 +265,18 @@
   /* She bolts, and recedes as she goes — the shrink is what turns a slide
      sideways into running away. */
   @keyframes fleeSmall {
-    0%, 59% { translate: 0 0; scale: 1;
-              animation-timing-function: cubic-bezier(.3,0,.2,1); }
-    64%     { translate: 62% 22%; scale: .93;
+    0%, 56% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.25,0,.15,1); }
+    61%     { translate: 62% 22%; scale: .93;
               animation-timing-function: ease-out; }
     80%     { translate: 56% 20%; scale: .94;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
     93%, 100% { translate: 0 0; scale: 1; }
   }
   @keyframes fleeMid {
-    0%, 61% { translate: 0 0; scale: 1;
-              animation-timing-function: cubic-bezier(.3,0,.2,1); }
-    65%     { translate: -52% 17%; scale: .96;
+    0%, 55% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.25,0,.15,1); }
+    61%     { translate: -52% 17%; scale: .96;
               animation-timing-function: ease-out; }
     80%     { translate: -46% 15%; scale: .965;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
@@ -285,11 +285,13 @@
   /* Up, into him, past the point where they meet. The one who built in brick
      is not going anywhere. */
   @keyframes chargeBig {
-    0%, 64% { translate: 0 0; scale: 1;
-              animation-timing-function: cubic-bezier(.35,0,.2,1); }
-    70%     { translate: 0 -50%; scale: 1.12;
+    0%, 55% { translate: 0 0; scale: 1;
+              animation-timing-function: cubic-bezier(.3,0,.3,1); }
+    63%     { translate: 0 7%; scale: .98;                  /* braces */
+              animation-timing-function: cubic-bezier(.4,0,.2,1); }
+    70%     { translate: 0 -52%; scale: 1.12;               /* and goes */
               animation-timing-function: ease-out; }
-    82%     { translate: 0 -43%; scale: 1.10;
+    82%     { translate: 0 -44%; scale: 1.10;
               animation-timing-function: cubic-bezier(.3,0,.3,1); }
     94%, 100% { translate: 0 0; scale: 1; }
   }
@@ -336,8 +338,8 @@
   .crest .c-wolf .browL { transform: translateY(-16px) rotate(-22deg); }
   .crest .c-wolf .browR { transform: translateY(-16px) rotate(22deg); }
   @keyframes browPress {
-    0%, 56%, 88%, 100% { translate: 0 0; }
-    60%, 72%           { translate: 0 2.8px; }
+    0%, 54%, 88%, 100% { translate: 0 0; }
+    59%, 72%           { translate: 0 2.8px; }
   }
   /* Three reactions, not one. She is terrified, he is afraid, and the eldest
      is angry — which on a brow is the same axis in the other direction. */
@@ -348,12 +350,12 @@
   .crest .c-big   .browL { animation-name: browAngryL; }
   .crest .c-big   .browR { animation-name: browAngryR; }
   @keyframes browTerrorL {
-    0%, 59%, 92%, 100% { rotate: 0deg; translate: 0 0; }
-    63%, 84%           { rotate: -15deg; translate: 0 -2.4px; }
+    0%, 55%, 92%, 100% { rotate: 0deg; translate: 0 0; }
+    60%, 84%           { rotate: -15deg; translate: 0 -2.4px; }
   }
   @keyframes browTerrorR {
-    0%, 59%, 92%, 100% { rotate: 0deg; translate: 0 0; }
-    63%, 84%           { rotate: 15deg; translate: 0 -2.4px; }
+    0%, 55%, 92%, 100% { rotate: 0deg; translate: 0 0; }
+    60%, 84%           { rotate: 15deg; translate: 0 -2.4px; }
   }
   @keyframes browAngryL {
     0%, 65%, 93%, 100% { rotate: 0deg; translate: 0 0; }
@@ -376,12 +378,12 @@
     62%, 84%      { rotate: -9deg; translate: 0 1.1px; }
   }
   @keyframes browAlarmL {
-    0%, 61%, 93%, 100% { rotate: 0deg; translate: 0 0; }
-    65%, 82%           { rotate: -11deg; translate: 0 -1.8px; }
+    0%, 55%, 93%, 100% { rotate: 0deg; translate: 0 0; }
+    60%, 82%           { rotate: -11deg; translate: 0 -1.8px; }
   }
   @keyframes browAlarmR {
-    0%, 61%, 93%, 100% { rotate: 0deg; translate: 0 0; }
-    65%, 82%           { rotate: 11deg; translate: 0 -1.8px; }
+    0%, 55%, 93%, 100% { rotate: 0deg; translate: 0 0; }
+    60%, 82%           { rotate: 11deg; translate: 0 -1.8px; }
   }
 
   /* Reduced motion means no motion that can make somebody ill — the backdrop
