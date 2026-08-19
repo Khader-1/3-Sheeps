@@ -785,9 +785,61 @@
     border-radius: 12px; font-size: clamp(20px, 3.6vmin, 44px); font-weight: 700;
     font-family: 'Poster Display', sans-serif;
   }
-  .over li:hover, .over li.on { background: rgba(255,246,220,.1); }
-  .over li i { font-style: normal; color: var(--gold); font-size: .6em; width: 1.4em; }
+  /* The seven you are not going to sit back, so the one you are can come
+     forward. Without this every line is the same cream and the destination is
+     distinguished only by being slightly larger, which does not carry to the
+     back of a room. */
+  .over li { color: rgba(255, 246, 220, .38); }
+  .over li:hover { background: rgba(255,246,220,.1); color: var(--paper); }
+  .over li i { font-style: normal; color: rgba(255,210,63,.42); font-size: .6em; width: 1.4em; }
   .over li em { font-style: normal; font-size: .48em; color: var(--muted); font-family: 'Poster Text', sans-serif; font-weight: 600; }
+
+  /* Every move between sections goes through here and holds for a beat and a
+     half, which makes this the most-looked-at screen in the deck — and it was
+     a flat list on near-black. The section being headed for now gets the
+     poster's own treatment, cream inside a heavy dark outline, so the moment
+     reads as part of the film rather than as a menu.
+
+     Scaled rather than set larger: font-size would reflow the list and shove
+     the other seven around every time the destination changed. Origin on the
+     right because the list is RTL and the numbers are the fixed edge. */
+  .over li.on {
+    background: none;
+    color: #FFF3C4;
+    -webkit-text-stroke: .085em #22160b;
+    paint-order: stroke fill;
+    text-shadow: 0 .04em .14em rgba(0,0,0,.6);
+    transform: scale(1.14);
+    transform-origin: right center;
+  }
+  .over li { transition: transform .34s cubic-bezier(.2,.9,.3,1.25), color .2s ease; }
+  .over li.on i { color: var(--gold); -webkit-text-stroke: 0; }
+  .over li.on em { color: rgba(255,246,220,.8); -webkit-text-stroke: 0; }
+
+  /* The list arrives instead of appearing, top to bottom. Eight items, so the
+     whole run is over in a third of a second and never delays the move. */
+  .over.on li { animation: overIn .3s cubic-bezier(.2,.9,.3,1) both; }
+  .over.on li:nth-child(1) { animation-delay: 0ms }
+  .over.on li:nth-child(2) { animation-delay: 26ms }
+  .over.on li:nth-child(3) { animation-delay: 52ms }
+  .over.on li:nth-child(4) { animation-delay: 78ms }
+  .over.on li:nth-child(5) { animation-delay: 104ms }
+  .over.on li:nth-child(6) { animation-delay: 130ms }
+  .over.on li:nth-child(7) { animation-delay: 156ms }
+  .over.on li:nth-child(8) { animation-delay: 182ms }
+  @keyframes overIn {
+    from { opacity: 0; transform: translateX(2.2em); }
+  }
+  /* The destination has to keep its scale once it has arrived, and a keyframe
+     with no `to` would otherwise hand it back a bare translate. */
+  .over.on li.on { animation-name: overInOn; }
+  @keyframes overInOn {
+    from { opacity: 0; transform: translateX(2.2em) scale(1.14); }
+    to   { opacity: 1; transform: scale(1.14); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .over.on li, .over.on li.on { animation: none; }
+  }
 
   /* ---- the games and book panes ------------------------------------- */
   .pane { width: 100%; height: 100%; display: grid; grid-template-rows: 1fr auto; gap: .7em; }
