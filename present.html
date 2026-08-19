@@ -797,6 +797,42 @@
     to   { opacity: 1; transform: none; }
   }
 
+  /* ---- the closing house ----------------------------------------------
+     The last slide argues the moral, instead of only printing it. «أتقِنْ
+     عملك… فالبيتُ المتينُ يحميكَ» — so the sound house builds itself under the
+     line, course by course from the ground up, the way the eldest brother
+     built his and the other two did not.
+
+     Colours are the film's own, sampled off the closing frame: #ac3836 brick,
+     cream mortar between the courses, cream in the window. */
+  /* In the column with the words, not floating behind them — it is the last
+     line of the argument, so it reads after the moral and before the footer. */
+  .build { display: grid; place-items: center; margin-top: clamp(14px, 2.6vmin, 40px); }
+  .build svg { width: clamp(150px, 21vmin, 300px); height: auto; display: block;
+               filter: drop-shadow(0 .05em .07em rgba(0,0,0,.55)); }
+  /* Each course is dropped in from above and settles. The stagger is set per
+     brick in JS, because it runs bottom-up and along each course, and 56 hand
+     written delays in a stylesheet is not a thing anyone should maintain. */
+  .build .bk, .build .rf, .build .op { opacity: 0; animation-fill-mode: forwards; }
+  .build.go .bk { animation: brickIn .42s cubic-bezier(.22,1.2,.4,1) forwards; }
+  .build.go .rf { animation: roofIn .5s cubic-bezier(.22,1.15,.4,1) forwards; }
+  .build.go .op { animation: fadeIn .45s ease forwards; }
+  @keyframes brickIn {
+    from { opacity: 0; transform: translateY(-26px) rotate(-4deg); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes roofIn {
+    from { opacity: 0; transform: translateY(-52px) scale(.94); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes fadeIn { to { opacity: 1; } }
+  /* Somebody watching a projector from the back row should not be the only
+     one who never sees this land, so it is quick; and anyone who has said they
+     do not want motion gets the finished house with no build at all. */
+  @media (prefers-reduced-motion: reduce) {
+    .build .bk, .build .rf, .build .op { opacity: 1; animation: none !important; }
+  }
+
   /* ---- chrome -------------------------------------------------------- */
   .rail {
     position: fixed; inset: auto 0 clamp(10px, 1.6vmin, 22px) 0; z-index: 30;
@@ -1038,6 +1074,7 @@
       <div style="text-align:center">
         <h1 class="titled">شكراً لكم</h1>
         <div class="sub" style="margin-top:1.2em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
+        <div class="build" id="build"></div>
       </div>
     </div>
     <div class="foot" style="z-index:1;justify-content:center"><span>كلية فلسطين التقنية — دير البلح</span></div>
@@ -1363,6 +1400,7 @@
   function onEnter(s) {
     if (s.id === 's-games') { mountGames(); countUp(); }
     if (s.id === 's-film') mountFilm();
+    if (s.id === 's-end') buildHouse();
     if (s.id === 's-book') mountBook();
     // Started on the way in and killed on the way out, rather than left to
     // run: it is a per-frame rig pose, and two of them ticking behind the film
