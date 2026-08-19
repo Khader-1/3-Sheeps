@@ -797,6 +797,34 @@
     to   { opacity: 1; transform: none; }
   }
 
+  /* ---- the curtain call ------------------------------------------------
+     The whole story again, small, along the bottom of the credits, running on
+     a loop for as long as the section is up. See creditsRun() below.
+
+     width/height as well as inset, because an <svg> with no viewBox is a
+     replaced element with no intrinsic ratio and inset:0 will not stretch one.
+     Under the chrome, which carries z-index 1. */
+  .runstrip {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; opacity: 0; transition: opacity .7s ease;
+    filter: brightness(.94);
+  }
+  #s-end.on .runstrip { opacity: 1; }
+  /* The flicker is on a wrapper of its own. The group underneath carries the
+     transform that puts the flame on the end of the tail, and transform-box:
+     fill-box would re-base that transform against the flame's own box and
+     throw it off the wolf entirely — which is exactly what it did to the
+     brows on the title slide. steps() rather than a smooth ease: fire does
+     not tween. */
+  .tailfire {
+    transform-box: fill-box; transform-origin: 50% 92%;
+    animation: flicker .13s steps(2, jump-none) infinite alternate;
+  }
+  @keyframes flicker {
+    from { transform: scale(1, 1) rotate(-4deg); }
+    to   { transform: scale(1.14, .86) rotate(5deg); }
+  }
+
   /* ---- the closing house ----------------------------------------------
      The last slide argues the moral, instead of only printing it. «أتقِنْ
      عملك… فالبيتُ المتينُ يحميكَ» — so the sound house builds itself under the
@@ -1069,6 +1097,7 @@
   <section class="slide" id="s-end" data-title="الخاتمة" data-name="شكراً">
     <div class="bg-poster" style="--shot:url('out/poster-wide.png')"></div>
     <div class="vignette"></div>
+    <svg class="runstrip" id="runstrip" aria-hidden="true"></svg>
     <div style="z-index:1"><div class="kicker">٠٧</div></div>
     <div class="stage" style="z-index:1">
       <div style="text-align:center">
@@ -1400,7 +1429,7 @@
   function onEnter(s) {
     if (s.id === 's-games') { mountGames(); countUp(); }
     if (s.id === 's-film') mountFilm();
-    if (s.id === 's-end') buildHouse();
+    if (s.id === 's-end') { buildHouse(); startRun(); } else stopRun();
     if (s.id === 's-book') mountBook();
     // Started on the way in and killed on the way out, rather than left to
     // run: it is a per-frame rig pose, and two of them ticking behind the film
@@ -1995,10 +2024,11 @@
    * Returns the scale, which is also what turns the rig's own units into the
    * slide's — the callers need it to know how wide he ended up.
    */
-  function placeRest(rig, b, { x, y, height }) {
+  function placeRest(rig, b, { x, y, height, flip = false }) {
     const s = height / b.height;
     rig.node.setAttribute('transform',
-      `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(5)}) `
+      `translate(${x.toFixed(1)} ${y.toFixed(1)}) `
+      + `scale(${(flip ? -s : s).toFixed(5)} ${s.toFixed(5)}) `
       + `translate(${(-(b.x + b.width / 2)).toFixed(2)} ${(-(b.y + b.height)).toFixed(2)})`);
     return s;
   }
@@ -2559,6 +2589,218 @@
       chaseRaf = requestAnimationFrame(step);
     };
     chaseRaf = requestAnimationFrame(step);
+  }
+
+  // ---- the curtain call --------------------------------------------------
+  //
+  // The whole film again in three crossings, small, along the bottom of the
+  // credits, looping for as long as the section is up:
+  //
+  //   1. the wolf comes through after the smallest, left to right
+  //   2. back the other way, and now it is both of the younger two
+  //   3. and back again with the wolf in front, tail alight, all three of
+  //      them after him
+  //
+  // Which is the story: he picks them off one at a time while they are apart,
+  // and the moment they are together he is the one running. Nobody has to say
+  // it — it is three passes of a running gag and the room works it out.
+  //
+  // All four in profile, and none of them ever flipped against the way they
+  // are drawn: the wolf's side view faces right and the sheep's face left, so
+  // whichever direction a pass runs, one of the two is mirrored and the other
+  // is not. Same rigs, same stride(), same distance-driven phase as the poster
+  // and the games.
+  const RUN_HEIGHT = 0.150;   // the wolf, as a fraction of the slide's height
+  const RUN_SIZE = { wolf: 1, big: 0.86, mid: 0.78, small: 0.70 };
+  // Units of ground per stride cycle, from «اهرب»: 210 to a 300-tall wolf,
+  // 170 to a 210-tall sheep.
+  const RUN_STRIDE = { wolf: 0.70, big: 0.81, mid: 0.81, small: 0.81 };
+  const RUN_GAP = 1.15;       // seconds of empty stage between passes
+  const RUN_PASSES = [
+    { dir: +1, dur: 3.0, cast: ['small', 'wolf'] },
+    { dir: -1, dur: 3.2, cast: ['small', 'mid', 'wolf'] },
+    // The faces turn over with the chase. Up to here he is menacing and they
+    // are afraid; on the way back it is the other way round, which is the
+    // whole point of the third pass and costs two expression changes.
+    { dir: +1, dur: 3.5, cast: ['wolf', 'small', 'mid', 'big'], fire: true,
+      faces: { wolf: 'terrified', sheep: 'determined' } },
+  ];
+  const RUN_CYCLE = RUN_PASSES.reduce((a, p) => a + p.dur + RUN_GAP, 0);
+
+  const runBox = document.getElementById('runstrip');
+  let runners = null, runRaf = 0, runWarm = null, runT0 = 0;
+
+  function warmRunners() {
+    if (!runWarm) runWarm = loadRunners().catch(() => null);
+    return runWarm;
+  }
+
+  async function loadRunners() {
+    if (runners) return runners;
+    let ex, gait, core;
+    try {
+      [ex, gait, core] = await Promise.all([
+        import('./src/expressions.js'),
+        import('./src/anim/gait.js'),
+        import('./src/rig.js'),
+      ]);
+    } catch { return null; }
+
+    const by = {};
+    for (const key of ['wolf', 'big', 'mid', 'small']) {
+      let rig;
+      try { rig = await ex.loadCharacter(key, 'side'); } catch { return null; }
+      const holder = core.svgEl('g');
+      holder.appendChild(rig.node);
+      runBox.appendChild(holder);
+      gait.buildLimbChains(rig);
+      // Measured while still rendered, then hidden — a display:none subtree has
+      // no layout box and getBBox() through one can come back empty, which
+      // divides into the target height as Infinity and drops the transform.
+      const rest = rig.bbox();
+      let tail = null;
+      if (key === 'wolf' && rig.has('الذيل')) {
+        try { tail = core.bboxIn(rig.part('الذيل'), rig.node); } catch { tail = null; }
+      }
+      holder.style.display = 'none';
+      if (!rest.height) return null;
+      ex.applyExpression(rig, key === 'wolf' ? 'menacing' : 'afraid');
+      by[key] = { key, rig, holder, rest, flip: null, height: 0,
+                  // Out of step with each other, so a line of them is not one
+                  // runner drawn four times.
+                  phase0: Object.keys(by).length * 0.41,
+                  strideRatio: RUN_STRIDE[key], sizeRatio: RUN_SIZE[key] };
+      if (tail) by[key].fire = tailFire(core, rig, tail);
+    }
+    runners = { ex, gait, core, by };
+    return runners;
+  }
+
+  /**
+   * A flame on the end of the wolf's tail, in the rig's own coordinates so it
+   * scales and mirrors with him.
+   *
+   * The tail is measured rather than guessed at — he is drawn facing right
+   * with it trailing behind, so the tip is the far end of its box from the
+   * body, and that is where the fire goes. Three tongues at different sizes,
+   * because one teardrop reads as a leaf.
+   */
+  function tailFire(core, rig, tail) {
+    const k = tail.height * 0.9;
+    const at = core.svgEl('g', {
+      transform: `translate(${(tail.x + tail.width * 0.20).toFixed(1)} `
+               + `${(tail.y + tail.height * 0.62).toFixed(1)}) scale(${(k / 110).toFixed(4)})`,
+    });
+    // Hidden through the style property, not a display attribute: the frame
+    // loop turns it back on by clearing the inline style, and an attribute
+    // would still be sitting underneath saying none.
+    at.style.display = 'none';
+    const wrap = core.svgEl('g', { class: 'tailfire' });
+    const tongue = (s, fill, dx) => core.svgEl('path', {
+      d: 'M 0 0 C 34 -34, 44 -76, 0 -128 C -44 -76, -34 -34, 0 0 Z',
+      fill, transform: `translate(${dx} 0) scale(${s})`, opacity: 0.95,
+    });
+    wrap.append(
+      tongue(1.0, '#ff7a18', 0),
+      tongue(0.66, '#ffd23f', -14),
+      tongue(0.36, '#fff3c4', 6),
+    );
+    at.appendChild(wrap);
+    rig.node.appendChild(at);
+    return at;
+  }
+
+  function stopRun() {
+    cancelAnimationFrame(runRaf);
+    runRaf = 0;
+    // The loop stops wherever it was, so whoever was mid-pass is still shown
+    // and would be there again for one frame on the way back in, standing at
+    // last time's mark. Cleared here instead.
+    if (!runners) return;
+    runners.pass = undefined;
+    for (const m of Object.values(runners.by)) {
+      m.holder.style.display = 'none';
+      if (m.fire) m.fire.style.display = 'none';
+    }
+  }
+
+  function startRun() {
+    stopRun();
+    warmRunners().then((r) => {
+      if (!r || !slides[at].id || slides[at].id !== 's-end') return;
+      runT0 = performance.now();
+      runRaf = requestAnimationFrame(runFrame);
+    });
+  }
+
+  function runFrame(now) {
+    runRaf = 0;
+    if (!runners || !document.getElementById('s-end').classList.contains('on')) return;
+    const slide = document.getElementById('s-end');
+    const stage = slide.querySelector('.stage');
+    const W = slide.clientWidth, H = slide.clientHeight;
+    if (!W || !H) { runRaf = requestAnimationFrame(runFrame); return; }
+    runBox.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    // They run along the floor of the stage row, which puts them under the
+    // moral and clear of the footer whatever the type does at this size.
+    const gy = stage.offsetTop + stage.offsetHeight;
+
+    const t = ((now - runT0) / 1000) % RUN_CYCLE;
+    let acc = 0, pass = null, p = 0;
+    for (const q of RUN_PASSES) {
+      if (t >= acc && t < acc + q.dur) { pass = q; p = (t - acc) / q.dur; break; }
+      acc += q.dur + RUN_GAP;
+    }
+
+    for (const m of Object.values(runners.by)) {
+      m.holder.style.display = 'none';
+      if (m.fire) m.fire.style.display = 'none';
+    }
+
+    // Applied on the frame the pass turns over, not every frame — express()
+    // rewrites a dozen parts and none of it changes in between.
+    if (runners.pass !== pass) {
+      runners.pass = pass;
+      const f = (pass && pass.faces) || { wolf: 'menacing', sheep: 'afraid' };
+      for (const m of Object.values(runners.by)) {
+        runners.ex.applyExpression(m.rig, m.key === 'wolf' ? f.wolf : f.sheep);
+      }
+    }
+
+    if (pass) {
+      const M = W * 0.12;             // clear of the edge before anyone shows
+      const sp = W * 0.078;           // the gap between one runner and the next
+      const n = pass.cast.length;
+      // Far enough that the last of them is off the far edge at p = 1, not
+      // just the leader.
+      const T = (W + 2 * M + (n - 1) * sp) * p;
+      for (const [i, key] of pass.cast.entries()) {
+        const m = runners.by[key];
+        if (!m) continue;
+        const height = H * RUN_HEIGHT * m.sizeRatio;
+        // The wolf is drawn facing right and the sheep facing left, so exactly
+        // one of the two is mirrored on any given pass. Re-placed only when
+        // that changes rather than every frame.
+        const flip = pass.dir > 0 ? key !== 'wolf' : key === 'wolf';
+        if (m.flip !== flip || m.height !== height) {
+          placeRest(m.rig, m.rest, { x: 0, y: gy, height, flip });
+          m.flip = flip; m.height = height;
+          m.stride = height * m.strideRatio;
+        }
+        const back = i * sp;
+        const x = pass.dir > 0 ? (-M + T - back) : (W + M - T + back);
+        // Leaning into the run — and in a mirrored rig a positive rotation
+        // comes out negative, so the sign has to account for both.
+        const lean = 9 * pass.dir * (flip ? -1 : 1);
+        const bob = runners.gait.stride(m.rig, m.phase0 + T / m.stride, {
+          swing: 34, bob: height * 0.05, lean, rock: 2.4,
+        });
+        m.holder.style.display = '';
+        m.holder.setAttribute('transform', `translate(${x.toFixed(1)} ${bob.toFixed(2)})`);
+        if (m.fire && pass.fire) m.fire.style.display = '';
+      }
+    }
+    runRaf = requestAnimationFrame(runFrame);
   }
 
   // ---- the closing house -----------------------------------------------
