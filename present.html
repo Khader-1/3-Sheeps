@@ -1560,6 +1560,15 @@
       // on the key and so does this one.
       if (key === 'small') ex.restArms(rig);
       gait.buildLimbChains(rig);
+      // Measure the joints now, while he is still being rendered. limbPivots()
+      // finds each hinge from where two parts actually overlap and then
+      // memoises the answer on the rig for good — and it measures through
+      // getScreenCTM(), which a display:none subtree has not got. Left to be
+      // called lazily from the first stride(), it can land on a frame where
+      // the rig is hidden, quietly fall back to "top-centre of the part" for
+      // every joint, and keep that forever. Top-centre is nowhere near a hip,
+      // so the legs swing off the body and stay off it.
+      gait.limbPivots(rig);
 
       // Measured while he is still being rendered, and hidden only afterwards.
       // getBBox() needs a layout box, and a display:none subtree does not have
@@ -2300,6 +2309,15 @@
       m.lit = u.lit;
       m.halo = u.halo;
       gait.buildLimbChains(m.rig);
+      // Measure the joints now, while he is still being rendered. limbPivots()
+      // finds each hinge from where two parts actually overlap and then
+      // memoises the answer on the rig for good — and it measures through
+      // getScreenCTM(), which a display:none subtree has not got. Left to be
+      // called lazily from the first stride(), it can land on a frame where
+      // the rig is hidden, quietly fall back to "top-centre of the part" for
+      // every joint, and keep that forever. Top-centre is nowhere near a hip,
+      // so the legs swing off the body and stay off it.
+      gait.limbPivots(m.rig);
       // The drawing's own box, measured once, while it is still at rest.
       // Everything about where he stands is derived from this and it is never
       // measured again — see layoutChase().
@@ -2612,17 +2630,24 @@
   // and the games.
   const RUN_HEIGHT = 0.150;   // the wolf, as a fraction of the slide's height
   const RUN_SIZE = { wolf: 1, big: 0.86, mid: 0.78, small: 0.70 };
-  // Units of ground per stride cycle, from «اهرب»: 210 to a 300-tall wolf,
-  // 170 to a 210-tall sheep.
-  const RUN_STRIDE = { wolf: 0.70, big: 0.81, mid: 0.81, small: 0.81 };
+  // Ground covered per stride cycle, as a multiple of the character's height.
+  //
+  // Not «اهرب»'s numbers, which are 0.70 and 0.81. Those are right for a sheep
+  // 210 units tall crossing a 1280-unit scene: about two cycles a second. Here
+  // the same figures are a seventh of that size and still crossing a whole
+  // screen, so driving the phase off distance at the game's ratio came out at
+  // nine cycles a second — the legs read as a blur rather than as running.
+  // Longer strides, which is what a small thing covering a lot of ground fast
+  // is actually doing, and the cadence lands near four.
+  const RUN_STRIDE = { wolf: 1.30, big: 1.50, mid: 1.50, small: 1.50 };
   const RUN_GAP = 1.15;       // seconds of empty stage between passes
   const RUN_PASSES = [
-    { dir: +1, dur: 3.0, cast: ['small', 'wolf'] },
-    { dir: -1, dur: 3.2, cast: ['small', 'mid', 'wolf'] },
+    { dir: +1, dur: 3.4, cast: ['small', 'wolf'] },
+    { dir: -1, dur: 3.6, cast: ['small', 'mid', 'wolf'] },
     // The faces turn over with the chase. Up to here he is menacing and they
     // are afraid; on the way back it is the other way round, which is the
     // whole point of the third pass and costs two expression changes.
-    { dir: +1, dur: 3.5, cast: ['wolf', 'small', 'mid', 'big'], fire: true,
+    { dir: +1, dur: 4.0, cast: ['wolf', 'small', 'mid', 'big'], fire: true,
       faces: { wolf: 'terrified', sheep: 'determined' } },
   ];
   const RUN_CYCLE = RUN_PASSES.reduce((a, p) => a + p.dur + RUN_GAP, 0);
@@ -2654,6 +2679,15 @@
       holder.appendChild(rig.node);
       runBox.appendChild(holder);
       gait.buildLimbChains(rig);
+      // Measure the joints now, while he is still being rendered. limbPivots()
+      // finds each hinge from where two parts actually overlap and then
+      // memoises the answer on the rig for good — and it measures through
+      // getScreenCTM(), which a display:none subtree has not got. Left to be
+      // called lazily from the first stride(), it can land on a frame where
+      // the rig is hidden, quietly fall back to "top-centre of the part" for
+      // every joint, and keep that forever. Top-centre is nowhere near a hip,
+      // so the legs swing off the body and stay off it.
+      gait.limbPivots(rig);
       // Measured while still rendered, then hidden — a display:none subtree has
       // no layout box and getBBox() through one can come back empty, which
       // divides into the target height as Infinity and drops the transform.
@@ -2792,10 +2826,10 @@
         // Leaning into the run — and in a mirrored rig a positive rotation
         // comes out negative, so the sign has to account for both.
         const lean = 9 * pass.dir * (flip ? -1 : 1);
+        m.holder.style.display = '';
         const bob = runners.gait.stride(m.rig, m.phase0 + T / m.stride, {
           swing: 34, bob: height * 0.05, lean, rock: 2.4,
         });
-        m.holder.style.display = '';
         m.holder.setAttribute('transform', `translate(${x.toFixed(1)} ${bob.toFixed(2)})`);
         if (m.fire && pass.fire) m.fire.style.display = '';
       }
