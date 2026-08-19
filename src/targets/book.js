@@ -1,9 +1,14 @@
 // The picture book — one SVG per page.
 //
-// Same staging technique as the poster: the backgrounds are empty sets, so the
-// characters are loaded as rigs, posed, and placed into the scene's own 1280×720
-// coordinate space. Pages are 16:9 like the film, which means the artwork is
-// used at its native aspect with nothing cropped.
+// Most pages are a delivered drawing with type over it: the picture comes in
+// as out/book-art/<id>.webp, embedded as a data URI so book.html stays a
+// single file, and this module adds the narration card and any speech bubbles.
+//
+// The cover is still staged the old way, and the machinery for it is still
+// here: same technique as the poster, where the backgrounds are empty sets and
+// the characters are loaded as rigs, posed, and placed into the scene's own
+// 1280×720 coordinate space. Pages are 16:9 like the film either way, so the
+// artwork is used at its native aspect with nothing cropped.
 //
 // Text is drawn in <foreignObject> rather than <text>. SVG text does not wrap,
 // and Arabic needs both wrapping and RTL — the browser does both correctly in
@@ -25,6 +30,9 @@ const H = BOOK.height;
 
 const CREAM = '#FFF6DC';
 const INK = '#241606';
+
+/** Why each art page's card went where it went — printed by tools/book.mjs. */
+const CORNERS = [];
 
 /** A <foreignObject> holding one styled HTML block — used for all page text. */
 function textBox({ x, y, w, h, html, cls }) {
@@ -77,6 +85,85 @@ function bestCorner(obstacles) {
     if (score < bestScore) { bestScore = score; best = where; }
   }
   return best;
+}
+
+/**
+ * The same question asked of a delivered drawing instead of a set of rigs.
+ *
+ * A staged page could score the four corners against the boxes of the
+ * characters it had just placed, because it knew where it had put them. A
+ * painting has no such inventory, so score the pixels: measure how much the
+ * image changes from one pixel to the next inside each corner slot, and take
+ * the calmest. In flat vector art that is a good proxy for emptiness — sky,
+ * grass, a plain wall and a shut door all read near zero, while a face, a
+ * woodpile or a fire reads high.
+ *
+ * The bottom corners keep the same head start they had before, expressed here
+ * as the amount of extra detail a bottom corner is allowed to carry and still
+ * win: text below the picture is the storybook convention, and the top of a
+ * frame is usually where the horizon is.
+ */
+const TOP_PENALTY = 2.2;
+
+function bestCornerOnArt(img) {
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(img, 0, 0, W, H);
+
+  const scores = {};
+  for (const where of ['bl', 'br', 'tl', 'tr']) {
+    const r = slotRect(where);
+    const pad = 20;                       // the card's own breathing room
+    const d = cx.getImageData(r.x - pad, r.y - pad, r.width + pad * 2, r.height + pad * 2);
+    const px = d.data;
+    const stride = d.width * 4;
+    const lum = (p) => px[p] * 0.299 + px[p + 1] * 0.587 + px[p + 2] * 0.114;
+
+    // Every second pixel, against its neighbour two along and two down. The
+    // step is only there to keep the pass cheap; halving it moves no verdict.
+    let sum = 0;
+    let n = 0;
+    for (let y = 0; y < d.height - 2; y += 2) {
+      for (let x = 0; x < d.width - 2; x += 2) {
+        const i = y * stride + x * 4;
+        const here = lum(i);
+        sum += Math.abs(lum(i + 8) - here) + Math.abs(lum(i + stride * 2) - here);
+        n++;
+      }
+    }
+    scores[where] = sum / n + (where[0] === 't' ? TOP_PENALTY : 0);
+  }
+
+  return { where: Object.keys(scores).reduce((a, b) => (scores[a] <= scores[b] ? a : b)), scores };
+}
+
+/**
+ * Fetch a page drawing and hand back both a data URI and a decoded image.
+ *
+ * The URI is what goes in the document — book.html has to keep working off a
+ * USB stick with no server behind it, so nothing may stay a URL. The decoded
+ * image is for bestCornerOnArt, which needs pixels.
+ */
+async function loadArt(id) {
+  const res = await fetch(`/out/book-art/${id}.webp`);
+  if (!res.ok) {
+    throw new Error(`missing page art out/book-art/${id}.webp — run: node tools/book-art.mjs`);
+  }
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  // In chunks: String.fromCharCode is applied to the whole array at once and
+  // a megabyte of arguments overflows the call stack.
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  const href = `data:image/webp;base64,${btoa(bin)}`;
+
+  const img = new Image();
+  img.src = href;
+  await img.decode();
+  return { href, img };
 }
 
 /** Rounded card carrying a line of narration. */
@@ -206,59 +293,71 @@ async function buildPage(spec) {
   });
   document.getElementById('stage').appendChild(svg);
 
-  // Scene, scaled up slightly when a page asks to push in.
-  const world = svgEl('g');
-  svg.appendChild(world);
-  world.appendChild(await loadScene(spec.scene));
-  if (spec.zoom && spec.zoom !== 1) {
-    const z = spec.zoom;
-    world.setAttribute('transform',
-      `translate(${(W * (1 - z)) / 2} ${(H * (1 - z)) / 2}) scale(${z})`);
-  }
-
-  // Cast. Rigs must be in the live document before place(), because place()
-  // measures with getBBox() and a detached node measures as zero.
-  const placed = [];
-  for (const c of spec.cast || []) {
-    const rig = await loadCharacter(c.key, c.view || 'front');
-    world.appendChild(rig.node);
-    applyExpression(rig, c.expr || 'neutral');
-    if (c.restArms) restArms(rig);
-    if (c.poses) {
-      for (const [path, t] of Object.entries(c.poses)) {
-        if (rig.has(path)) rig.pose(path, t);
-      }
-    }
-    const byHouse = c.faceHouse ? placeByHouse(rig, world, svg, c.faceHouse) : null;
-    const put = byHouse || { x: c.x, y: c.y, height: c.height, flip: !!c.flip };
-    rig.place({ ...put, rotate: c.rotate || 0 });
-    placed.push({ rig, c, flip: put.flip });
-    if (byHouse) c.flip = put.flip;   // the effects need to know which way he faces
-    placed[placed.length - 1].c = c;
-  }
-
-  // Effects run after every rig is placed, because they measure real page
-  // positions through the transform chain.
-  for (const { rig, c } of placed) {
-    if (c.blow) {
-      const g = blow(rig, svg, { power: c.blow.power ?? 1, facingLeft: !!c.flip });
-      if (g) world.appendChild(g);
-    }
-    if (c.burning) {
-      const g = flames(rig, svg, 'الذيل', { scale: c.burning.scale ?? 1 });
-      if (g) world.appendChild(g);
-    }
-    if (c.motion) {
-      world.appendChild(motionLines(rig, svg, { dir: c.motion }));
-    }
-  }
-
-  if (spec.night) {
-    svg.appendChild(svgEl('rect', {
-      x: 0, y: 0, width: W, height: H, fill: '#0b1430', opacity: spec.night,
+  // A page with delivered art is the art, and nothing below is staged for it.
+  let art = null;
+  if (spec.art) {
+    art = await loadArt(spec.id);
+    svg.appendChild(svgEl('image', {
+      href: art.href, 'xlink:href': art.href,
+      x: 0, y: 0, width: W, height: H,
+      preserveAspectRatio: 'xMidYMid slice',
     }));
   }
-  if (spec.rain) storm(svg);
+
+  const placed = [];
+  if (!art) {
+    // Scene, scaled up slightly when a page asks to push in.
+    const world = svgEl('g');
+    svg.appendChild(world);
+    world.appendChild(await loadScene(spec.scene));
+    if (spec.zoom && spec.zoom !== 1) {
+      const z = spec.zoom;
+      world.setAttribute('transform',
+        `translate(${(W * (1 - z)) / 2} ${(H * (1 - z)) / 2}) scale(${z})`);
+    }
+
+    // Cast. Rigs must be in the live document before place(), because place()
+    // measures with getBBox() and a detached node measures as zero.
+    for (const c of spec.cast || []) {
+      const rig = await loadCharacter(c.key, c.view || 'front');
+      world.appendChild(rig.node);
+      applyExpression(rig, c.expr || 'neutral');
+      if (c.restArms) restArms(rig);
+      if (c.poses) {
+        for (const [path, t] of Object.entries(c.poses)) {
+          if (rig.has(path)) rig.pose(path, t);
+        }
+      }
+      const byHouse = c.faceHouse ? placeByHouse(rig, world, svg, c.faceHouse) : null;
+      const put = byHouse || { x: c.x, y: c.y, height: c.height, flip: !!c.flip };
+      rig.place({ ...put, rotate: c.rotate || 0 });
+      if (byHouse) c.flip = put.flip;   // the effects need to know which way he faces
+      placed.push({ rig, c, flip: put.flip });
+    }
+
+    // Effects run after every rig is placed, because they measure real page
+    // positions through the transform chain.
+    for (const { rig, c } of placed) {
+      if (c.blow) {
+        const g = blow(rig, svg, { power: c.blow.power ?? 1, facingLeft: !!c.flip });
+        if (g) world.appendChild(g);
+      }
+      if (c.burning) {
+        const g = flames(rig, svg, 'الذيل', { scale: c.burning.scale ?? 1 });
+        if (g) world.appendChild(g);
+      }
+      if (c.motion) {
+        world.appendChild(motionLines(rig, svg, { dir: c.motion }));
+      }
+    }
+
+    if (spec.night) {
+      svg.appendChild(svgEl('rect', {
+        x: 0, y: 0, width: W, height: H, fill: '#0b1430', opacity: spec.night,
+      }));
+    }
+    if (spec.rain) storm(svg);
+  }
 
   if (spec.kind === 'cover') {
     const band = svgEl('g');
@@ -287,8 +386,22 @@ async function buildPage(spec) {
       ...placed.map(({ rig }) => ({ ...bboxIn(rig.node, svg), weight: 2 })),
       ...bubbleNodes.map((n) => ({ ...bboxIn(n, svg), weight: 3 })),
     ];
-    const where = spec.textAt || bestCorner(obstacles);
-    svg.appendChild(narrationCard(spec.text, where));
+    let where = spec.textAt;
+    if (!where && art) {
+      // A bubble already on the page beats anything the pixels have to say:
+      // the card must not land under it.
+      const read = bestCornerOnArt(art.img);
+      for (const n of bubbleNodes) {
+        const b = bboxIn(n, svg);
+        for (const w of ['bl', 'br', 'tl', 'tr']) {
+          if (overlap(slotRect(w), b) > 0) read.scores[w] += 1e4;
+        }
+      }
+      where = Object.keys(read.scores).reduce((a, b) => (read.scores[a] <= read.scores[b] ? a : b));
+      CORNERS.push(`  ${spec.id}  ${where}   ` +
+        ['bl', 'br', 'tl', 'tr'].map((w) => `${w} ${read.scores[w].toFixed(1)}`).join('  '));
+    }
+    svg.appendChild(narrationCard(spec.text, where || bestCorner(obstacles)));
   }
 
   return svg;
@@ -303,7 +416,10 @@ export default async function book() {
     ids.push(spec.id);
   }
 
-  window.__book = { fontCss, ids, width: W, height: H, title: BOOK.title };
+  window.__book = {
+    fontCss, ids, width: W, height: H, title: BOOK.title,
+    corners: CORNERS.join('\n'),
+  };
 
   // The harness expects a film-shaped object; the book is static.
   return { duration: 0, width: W, height: H, seek: () => {}, setTransparent: () => {} };

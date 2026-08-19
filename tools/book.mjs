@@ -14,9 +14,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { serve } from './serve.mjs';
+import { buildArt } from './book-art.mjs';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const wantPng = process.argv.includes('--png');
+const wantCorners = process.argv.includes('--corners');
+
+// The pages are drawings now, and the renderer fetches them as WebP. Encoding
+// them here rather than expecting a separate step means a fresh clone builds
+// the book in one command; unchanged pages are skipped, so it costs nothing.
+const encoded = buildArt();
+if (encoded) console.log(`art    ${encoded} page${encoded === 1 ? '' : 's'} re-encoded`);
 
 const { server, port, root } = await serve(0);
 const OUT = path.join(root, 'out');
@@ -67,8 +75,12 @@ try {
     console.log(`png    out/book/  (${els.length} pages)`);
   }
 
-  const kb = (fs.statSync(outFile).size / 1024).toFixed(0);
-  console.log(`book   out/book.html  (${data.pages.length} pages, ${kb} KB)`);
+  const mb = (fs.statSync(outFile).size / 1048576).toFixed(1);
+  console.log(`book   out/book.html  (${data.pages.length} pages, ${mb} MB)`);
+  if (wantCorners && data.meta.corners) {
+    console.log('\nnarration card, and the detail it found in each corner:');
+    console.log(data.meta.corners);
+  }
   if (errors.length) {
     console.log('\npage errors:');
     for (const e of [...new Set(errors)].slice(0, 6)) console.log('  ' + e);

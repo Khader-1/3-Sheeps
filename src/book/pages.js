@@ -1,15 +1,26 @@
 // The picture book, as data.
 //
-// One entry per page. Everything the renderer needs is declarative, so the
-// book can be re-laid-out, re-ordered or re-translated without touching the
-// drawing code — and so a page can be nudged by editing two numbers.
+// One entry per page, in reading order. The drawings are delivered artwork —
+// out/book-art/<id>.webp, built from assets/incoming/كتاب by tools/book-art.mjs
+// — so a page here carries only what is laid *over* the picture: the narration
+// and any speech.
+//
+// It was not always so. Every page used to be staged the way the poster is:
+// name a background set, list the cast, give each character a position, a
+// height, an expression and sometimes a pose, and let the renderer measure and
+// place the rigs. That machinery is still here and the cover still uses it —
+// see `kind: 'cover'` below and src/targets/book.js. The story pages no longer
+// need it, and the staging fields they used to carry (scene, cast, night,
+// rain, zoom) are gone rather than left to rot; git remembers them.
 //
 // Text is deliberately spare. The film has the full 27-scene script with all
 // its dialogue; a picture book for this age carries one or two lines a page
 // and lets the drawing do the rest. Dialogue that survives is in bubbles.
 //
-// Coordinates are in scene space: every background is 1280×720, the ground
-// the characters stand on is around y=660, and x=640 is centre.
+// Coordinates are in page space: 1280×720, x=640 centre. Bubbles are placed by
+// hand against the artwork — `x` is the centre of the box, `y` its top, and
+// `tail` the point it should aim at, which wants to be the speaker's muzzle.
+// The narration card picks its own corner; `textAt` overrides that.
 
 export const BOOK = {
   title: 'الخراف الثلاثة والذئب الماكر',
@@ -22,6 +33,9 @@ const GROUND = 668;
 
 export const PAGES = [
   // ---------------------------------------------------------------- cover
+  // The one page with no delivered drawing, so it is still staged from the
+  // set and the rigs — which suits it: the cover wants all four characters
+  // together facing out, and no frame of the film has that.
   {
     id: 'cover',
     kind: 'cover',
@@ -38,227 +52,145 @@ export const PAGES = [
   // ---------------------------------------------------------------- story
   {
     id: 'p01',
-    scene: 'خلفيه 1',
+    art: true,
     text: 'فوق تلٍّ بعيد، عاش ثلاثةُ إخوةٍ صغار في كوخٍ قديم.',
-    cast: [
-      { key: 'big', x: 350, y: GROUND, height: 236, expr: 'neutral' },
-      { key: 'mid', x: 205, y: GROUND, height: 214, expr: 'neutral' },
-      { key: 'small', x: 480, y: GROUND, height: 192, expr: 'neutral', restArms: true },
-    ],
   },
   {
     id: 'p02',
-    scene: 'خلفيه 1',
-    night: 0.62,
-    rain: true,
+    art: true,
     text: 'وفي ليلةٍ عاصفة، هبّت الريحُ على الكوخِ القديم.',
-    cast: [],
   },
   {
     id: 'p03',
-    scene: 'خلفيات 3و4و2',
+    art: true,
     text: 'فسقطَ السقفُ… ولم يبقَ لهم بيتٌ يحميهم.',
-    cast: [
-      { key: 'big', x: 400, y: GROUND, height: 232, expr: 'worried' },
-      { key: 'mid', x: 258, y: GROUND, height: 210, expr: 'afraid' },
-      { key: 'small', x: 530, y: GROUND, height: 190, expr: 'afraid', restArms: true },
-      { key: 'wolf', view: 'side', x: 1180, y: GROUND + 10, height: 300, flip: true, expr: 'menacing' },
-    ],
   },
   {
     id: 'p04',
-    scene: 'خلفيات 3و4و2',
+    art: true,
     text: 'قال الأكبر: لنبنِ بيتاً واحداً متيناً. لكنّهم اختلفوا.',
-    cast: [
-      { key: 'big', x: 620, y: GROUND, height: 244, expr: 'determined' },
-      { key: 'mid', x: 430, y: GROUND, height: 216, expr: 'neutral' },
-      { key: 'small', x: 790, y: GROUND, height: 196, expr: 'neutral', restArms: true },
-    ],
+    // The horned brother is mid-sentence in the middle of the frame; the bubble
+    // sits on the roof above him, which is the only large flat area left.
     bubbles: [
-      { x: 620, y: 250, w: 300, text: 'لنبنِ بيتاً قوياً!', tail: [620, 430] },
+      { x: 610, y: 60, w: 300, text: 'لنبنِ بيتاً قوياً!', tail: [672, 420] },
     ],
   },
   {
     id: 'p05',
-    scene: 'مشهد5',
+    art: true,
     text: 'الأصغرُ كان كسولاً، فجمع القشَّ وانتهى سريعاً.',
-    cast: [
-      { key: 'small', x: 300, y: GROUND + 6, height: 250, expr: 'neutral', restArms: true },
-    ],
   },
   {
     id: 'p06',
-    scene: 'مشهد6',
+    art: true,
     text: 'والأوسطُ جمع الحطبَ، وبنى بيته على عجل.',
-    cast: [
-      { key: 'mid', x: 610, y: GROUND + 6, height: 258, expr: 'neutral' },
-    ],
   },
   {
     id: 'p07',
-    scene: 'مشهد7',
+    art: true,
     text: 'أمّا الأكبرُ فبنى بالحجارةِ والطين، وأتقنَ عملَه.',
-    cast: [
-      { key: 'big', x: 930, y: GROUND + 6, height: 280, expr: 'determined' },
-    ],
   },
   {
     id: 'p08',
-    scene: 'مشهد8',
+    art: true,
     text: 'وذاتَ صباح، مرَّ ذئبٌ جائع.',
-    cast: [
-      { key: 'wolf', view: 'side', x: 820, y: GROUND + 14, height: 330, flip: true, expr: 'menacing' },
-    ],
   },
   {
     id: 'p09',
-    scene: 'مشهد9',
+    art: true,
     text: 'فطرقَ بابَ بيتِ القشّ.',
-    cast: [
-      { key: 'wolf', view: 'side', expr: 'menacing',
-        faceHouse: { match: 'بيت_قش', frac: 0.62, gap: 10 } },
-    ],
+    // He is knocking at the centre of the frame and facing right, into the
+    // door — so the bubble goes right of his head, the way he is speaking.
     bubbles: [
-      { x: 470, y: 190, w: 300, text: 'افتحِ البابَ أيها الخروف!', tail: [640, 330] },
+      { x: 1000, y: 66, w: 330, text: 'افتحِ البابَ أيها الخروف!', tail: [700, 400] },
     ],
+    textAt: 'bl',
   },
   {
     id: 'p10',
-    scene: 'مشهد10',
+    art: true,
     text: '',
-    cast: [
-      { key: 'small', x: 640, y: GROUND + 20, height: 300, expr: 'terrified', restArms: true },
-    ],
+    // The lamb is right of centre against the door; the roof over the room's
+    // left half is empty, so the bubble goes there and reaches across.
     bubbles: [
-      { x: 340, y: 170, w: 340, text: 'أنتَ أتيتَ لتأكلَني! لن أفتحَ لك!', tail: [560, 340] },
+      { x: 400, y: 46, w: 340, text: 'أنتَ أتيتَ لتأكلَني! لن أفتحَ لك!', tail: [650, 355] },
     ],
   },
   {
     id: 'p11',
-    scene: 'مشهد11',
+    art: true,
     text: 'فنفخَ… وتطايرَ القشُّ في الهواء.',
-    cast: [
-      { key: 'wolf', view: 'side', expr: 'menacing', blow: { power: 1.0 },
-        faceHouse: { match: 'بيت_قش_من_الجمب', frac: 0.68, gap: 30 } },
-    ],
   },
   {
     id: 'p12',
-    scene: 'مشهد12',
+    art: true,
     text: 'هربَ الأصغرُ إلى بيتِ أخيه المصنوعِ من الحطب.',
-    cast: [
-      { key: 'small', x: 700, y: GROUND + 8, height: 268, expr: 'terrified', restArms: true,
-        poses: { 'الرجل_ش': { rotate: 26, pivot: [0.5, 0.04] }, 'الرجل_ي': { rotate: -26, pivot: [0.5, 0.04] } } },
-    ],
   },
   {
     id: 'p13',
-    scene: 'مشهد13',
+    art: true,
     text: '',
-    cast: [
-      { key: 'mid', x: 470, y: GROUND + 24, height: 290, expr: 'worried' },
-      { key: 'small', x: 810, y: GROUND + 24, height: 252, expr: 'terrified', restArms: true },
-    ],
+    // Two speakers: the lamb in the middle, his woolly brother on the right.
+    // Their bubbles take opposite ends of the beam so the tails do not cross.
     bubbles: [
-      { x: 250, y: 150, w: 290, text: 'ما الذي يحدثُ؟', tail: [430, 300] },
-      { x: 760, y: 130, w: 330, text: 'الذئبُ هدمَ بيتي!', tail: [830, 290] },
+      { x: 1050, y: 40, w: 280, text: 'ما الذي يحدثُ؟', tail: [975, 300] },
+      { x: 420, y: 40, w: 320, text: 'الذئبُ هدمَ بيتي!', tail: [660, 280] },
     ],
   },
   {
     id: 'p14',
-    scene: 'مشهد14',
+    art: true,
     text: 'ثم وجدَ الذئبُ بيتَ الحطب، وطرقَ البابَ من جديد.',
-    cast: [
-      { key: 'wolf', view: 'side', expr: 'menacing',
-        faceHouse: { match: 'بيت_خشب_جاهز', frac: 0.62, gap: 10 } },
-    ],
   },
   {
     id: 'p15',
-    scene: 'مشهد16جزء2',
+    art: true,
     text: 'ونفخَ نفخةً قوية… فسقطَ بيتُ الحطب.',
-    cast: [
-      { key: 'wolf', view: 'side', expr: 'menacing', blow: { power: 1.25 },
-        faceHouse: { match: 'خشب_حطام', height: 300, gap: 40, side: 'left' } },
-    ],
   },
   {
     id: 'p16',
-    scene: 'مشهد17و18',
+    art: true,
     text: '',
-    cast: [
-      { key: 'mid', x: 390, y: GROUND + 30, height: 268, expr: 'afraid' },
-      { key: 'small', x: 900, y: GROUND + 30, height: 240, expr: 'terrified', restArms: true },
-      { key: 'big', x: 645, y: GROUND + 34, height: 300, expr: 'determined' },
-    ],
+    // The horned brother is the rightmost of the three and the one reassuring
+    // the others.
     bubbles: [
-      { x: 640, y: 120, w: 360, text: 'لا تخافا، بيتي متين!', tail: [645, 300] },
+      { x: 940, y: 56, w: 360, text: 'لا تخافا، بيتي متين!', tail: [880, 330] },
     ],
   },
   {
     id: 'p17',
-    scene: 'مشهد19',
+    art: true,
     text: 'وصلَ الذئبُ إلى البيتِ المتين، وطرقَ بابَه.',
-    cast: [
-      { key: 'wolf', view: 'side', expr: 'menacing',
-        faceHouse: { match: 'بيت_طوب_جاهز', frac: 0.6, gap: 10 } },
-    ],
   },
   {
     id: 'p18',
-    scene: 'مشهد21',
+    art: true,
     text: 'نفخَ… ونفخَ… ونفخ. لكنّ البيتَ لم يتزحزح.',
-    cast: [
-      { key: 'wolf', view: 'side', expr: 'menacing', blow: { power: 1.35 },
-        faceHouse: { match: 'بيت_طوب_من_الجمب', frac: 0.85, gap: 30 } },
-    ],
   },
   {
     id: 'p19',
-    scene: 'مشهد23',
+    art: true,
     text: '',
-    cast: [
-      { key: 'mid', x: 300, y: GROUND + 30, height: 262, expr: 'worried' },
-      { key: 'small', x: 700, y: GROUND + 30, height: 236, expr: 'afraid', restArms: true },
-      { key: 'big', x: 495, y: GROUND + 34, height: 296, expr: 'determined' },
-    ],
     bubbles: [
-      { x: 470, y: 116, w: 330, text: 'عندي خطة…', tail: [495, 300] },
+      { x: 1000, y: 56, w: 300, text: 'عندي خطة…', tail: [980, 290] },
     ],
   },
   {
     id: 'p20',
-    scene: 'مشهد25',
+    art: true,
     text: 'نزلَ الذئبُ من المدخنة… فاحترقَ ذيلُه!',
-    cast: [
-      // Tipped head-down over the hearth: he is falling, not standing.
-      { key: 'wolf', view: 'side', x: 1035, y: 430, height: 290, flip: true,
-        rotate: 150, expr: 'terrified', motion: 'up',
-        burning: { scale: 1.35 } },
-    ],
   },
   {
     id: 'p21',
-    scene: 'مشهد26',
+    art: true,
     text: 'وهربَ يعدو في الغابةِ بعيداً، ولم يعُد.',
-    cast: [
-      // Fleeing left, away from the house — and the burning tail trails behind.
-      { key: 'wolf', view: 'side', x: 470, y: GROUND + 10, height: 300, flip: true, expr: 'afraid',
-        burning: { scale: 0.85 },
-        poses: { 'الرجل__و': { rotate: 34, pivot: [0.5, 0.04] }, 'الرجل_ق': { rotate: -34, pivot: [0.5, 0.04] } } },
-    ],
   },
 
   // ----------------------------------------------------------------- end
   {
     id: 'end',
     kind: 'moral',
-    scene: 'المشهد27الاخير',
+    art: true,
     text: 'أتقِنْ عملَك… فالبيتُ المتينُ يحميكَ يوماً ما.',
-    cast: [
-      { key: 'big', x: 640, y: GROUND, height: 246, expr: 'determined' },
-      { key: 'mid', x: 470, y: GROUND, height: 222, expr: 'neutral' },
-      { key: 'small', x: 800, y: GROUND, height: 200, expr: 'neutral', restArms: true },
-    ],
   },
 ];

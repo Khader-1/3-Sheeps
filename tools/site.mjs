@@ -29,6 +29,10 @@ const EXCLUDE = [
   // The poster exports. Only tools/poster-art.mjs reads them, and at ~1.9 MB
   // they would be the largest thing on the site that nothing ever requests.
   /^assets\/incoming\/خلفيات\/ملصق-/,
+  // The delivered book pages, 23 MB of them. tools/book-art.mjs compresses
+  // them and tools/book.mjs inlines the result into out/book.html, which is
+  // the only form the site serves.
+  /^assets\/incoming\/كتاب\//,
   /^tools\//,            // the pipeline itself is not served
   /^README\.md$/,
   /^\.nojekyll$/,        // a GitHub Pages concern; Cloudflare has no Jekyll
