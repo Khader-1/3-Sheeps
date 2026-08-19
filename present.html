@@ -1534,7 +1534,7 @@
     // turning end over end, so what has to fit is not his height but the
     // diagonal he sweeps, and at the top of the jump that is measured from an
     // apex already well above the middle.
-    const height = H * Math.max(0.09, Math.min(0.13, 0.14 - n * 0.007));
+    const height = H * Math.max(0.103, Math.min(0.15, 0.161 - n * 0.008));
     // Spread across the middle of the frame, tightening as the count grows so
     // that seven still fit inside 70% of the width without touching.
     const gap = n === 1 ? 0 : W * Math.min(0.16, 0.7 / (n - 1));
