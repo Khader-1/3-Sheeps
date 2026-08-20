@@ -3691,9 +3691,12 @@
       });
       // One ellipse per eye, cut to that eye. The gradient runs clear to 78%
       // of each radius, so at 1.28 of the half-size the clear part lands on
-      // the eye itself and only the feather falls outside it.
+      // the eye exactly and only the feather falls outside it — which is right
+      // vertically and a touch wide across, because the corners of the eye
+      // taper to nothing and the last two pixels of the opening are muzzle.
+      // 1.15 across takes those two back.
       eyes.forEach((r, i) => {
-        boot.style.setProperty(`--rx${i}`, `${Math.max(6, r.width / 2 * 1.28).toFixed(1)}px`);
+        boot.style.setProperty(`--rx${i}`, `${Math.max(5, r.width / 2 * 1.15).toFixed(1)}px`);
         boot.style.setProperty(`--ry${i}`, `${Math.max(4, r.height / 2 * 1.28).toFixed(1)}px`);
       });
       boot.classList.add('peek');
