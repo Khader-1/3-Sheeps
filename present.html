@@ -931,7 +931,6 @@
     80% { transform: translateY(6px); }
     88% { transform: translateY(0); }
   }
-  @media (prefers-reduced-motion: reduce) { .keycap { animation: none; } }
   .bootline {
     margin: 0; font-family: 'Poster Display', sans-serif; font-weight: 800;
     font-size: clamp(17px, 2.8vmin, 36px); color: #FFF3C4;
@@ -1005,15 +1004,17 @@
      trigger, which is why the poster backdrop is already treated this way,
      and hiding the artwork would be answering a different complaint. */
   .outroart .sheet.on.drift,
-  .outroart .sheet.on .drift { animation: artDrift 13s linear both; }
+  .outroart .sheet.on .drift { animation: artDrift 16s linear both; }
   @keyframes artDrift {
     from { transform: translate(var(--dx0, 0px), var(--dy0, 0px)); }
     to   { transform: translate(var(--dx1, 0px), var(--dy1, 0px)); }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .outroart .sheet.drift, .outroart .sheet .drift {
-      animation: none !important; transform: none !important; }
-  }
+  /* No reduced-motion rule here on purpose. The only thing on this deck that
+     gets one is .bg-poster, the full-screen backdrop pan, which is the single
+     genuine vestibular trigger — a faint sheet of line art travelling thirty
+     pixels a second behind the credits is not, and switching it off means the
+     boards never move at all for the person presenting, who has the setting
+     on and asked for the travel. */
   /* The flicker is on a wrapper of its own. The group underneath carries the
      transform that puts the flame on the end of the tail, and transform-box:
      fill-box would re-base that transform against the flame's own box and
@@ -1164,7 +1165,6 @@
   .over.on li { animation: overIn .38s cubic-bezier(.2,.9,.3,1.2) both;
                 animation-delay: calc(var(--k) * .03s); }
   @keyframes overIn { from { opacity: 0; transform: translateY(14px); } }
-  @media (prefers-reduced-motion: reduce) { .over.on li { animation: none; } }
 
   /* The list arrives instead of appearing, top to bottom. Eight items, so the
      whole run is over in a third of a second and never delays the move. */
@@ -1186,9 +1186,6 @@
   @keyframes overInOn {
     from { opacity: 0; transform: translateX(2.2em) scale(1.14); }
     to   { opacity: 1; transform: scale(1.14); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .over.on li, .over.on li.on { animation: none; }
   }
 
   /* ---- the games and book panes ------------------------------------- */
@@ -2937,8 +2934,8 @@
   // rest. The chase gets its three crossings at the top and that is all.
   const RUN_REST = 90;
   const RUN_TOTAL = RUN_CYCLE + RUN_REST;
-  const ART_LEAD = 3;        // s into the rest before the first sheet
-  const ART_HOLD = 13;       // and how long each one holds
+  const ART_AT = 7;          // s: right behind the first credit card
+  const ART_HOLD = 16;       // and how long each one holds
 
   const runBox = document.getElementById('runstrip');
   let runners = null, runRaf = 0, runWarm = null, runT0 = 0;
@@ -3244,7 +3241,7 @@
         rig.place({ x, y, height: h });
       }
       markDraw(g, 0.014);
-      drift(g, W * 0.105, 0, -W * 0.105, 0);          // right to left
+      drift(g, W * 0.135, 0, -W * 0.135, 0);          // right to left
     }
 
     // ---- the cast, measured ------------------------------------------
@@ -3267,7 +3264,7 @@
       }
       g.insertBefore(core.svgEl('line', { x1: -W * 0.12, x2: W * 1.12, y1: base, y2: base }), g.firstChild);
       markDraw(g, 0.012);
-      drift(g, -W * 0.095, 0, W * 0.095, 0);          // and back the other way
+      drift(g, -W * 0.12, 0, W * 0.12, 0);            // and back the other way
     }
 
     // ---- the scenes, as a wall ---------------------------------------
@@ -3306,7 +3303,7 @@
       // is half what a single sliding sheet would take: about thirty pixels a
       // second each, sixty between neighbours. Well under half the overspill,
       // so no row ever shows its end.
-      const travel = (CW - W) * 0.21;
+      const travel = (CW - W) * 0.26;
       band.forEach((row, r) => {
         const ltr = r % 2 === 0;
         drift(row, ltr ? -travel : travel, 0, ltr ? travel : -travel, 0);
@@ -3351,7 +3348,7 @@
       // plan, centred, and the whole of it is the point — so it gets a slow
       // rise instead, enough that it is not a still and not enough to look
       // like it is drifting off its mark.
-      drift(g, 0, H * 0.024, 0, -H * 0.024);
+      drift(g, 0, H * 0.03, 0, -H * 0.03);
     }
 
     outroArt = { sheets };
@@ -3438,15 +3435,16 @@
       }
     }
 
-    // The chase runs its three crossings and then rests for two minutes. The
-    // sheets fill that rest — one at a time, in turn — and are gone again
-    // before it comes back round, so the two are never both moving.
-    const inCycle = elapsed % RUN_TOTAL;
-    const rest = inCycle - RUN_CYCLE - ART_LEAD;
-    const si = Math.floor(rest / ART_HOLD);
-    showArt(rest >= 0 && si < ART_ORDER.length ? si : -1);
+    // The boards run on the section's own clock rather than on the chase's
+    // rest: up behind the first credit card and still up behind the last, four
+    // of them at sixteen seconds, which is 7s to 71s against titles that
+    // finish at 73. They overlap the tail of the chase for a few seconds and
+    // that is fine — one is a strip along the floor and the others are a wash
+    // behind the type.
+    const ai = Math.floor((elapsed - ART_AT) / ART_HOLD);
+    showArt(elapsed >= ART_AT && ai < ART_ORDER.length ? ai : -1);
 
-    const t = inCycle;
+    const t = elapsed % RUN_TOTAL;
     let acc = 0, pass = null, p = 0;
     for (const q of RUN_PASSES) {
       if (t >= acc && t < acc + q.dur) { pass = q; p = (t - acc) / q.dur; break; }
