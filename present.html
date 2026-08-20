@@ -903,6 +903,33 @@
     transition: opacity var(--t, 3.4s) ease, visibility var(--t, 3.4s);
   }
   .boot.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* The cold open. Between the button being pressed and the room coming up,
+     the black holds for a couple of seconds with two holes punched in it over
+     the wolf's eyes — the real ones, measured off the crest, so when the light
+     comes up they are already exactly where they were and nothing jumps.
+     Then the holes widen as the black fades and the scene arrives out of them.
+
+     Two mask layers composited to an intersection: each is opaque everywhere
+     but its own hole, and the intersection is opaque everywhere but both. On
+     anything that does not do mask-composite the layers merely add up to
+     opaque, which is a plain black hold — the right thing to degrade to. */
+  @property --hole { syntax: '<length>'; initial-value: 11px; inherits: false; }
+  .boot.peeking .bootstage, .boot.peeking .bootnote {
+    opacity: 0; transition: opacity .3s ease;
+  }
+  .boot.peek {
+    -webkit-mask-image:
+      radial-gradient(circle at var(--ex0) var(--ey0), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7)),
+      radial-gradient(circle at var(--ex1) var(--ey1), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7));
+    -webkit-mask-composite: source-in;
+    mask-image:
+      radial-gradient(circle at var(--ex0) var(--ey0), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7)),
+      radial-gradient(circle at var(--ex1) var(--ey1), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7));
+    mask-composite: intersect;
+    transition: opacity var(--t, 3.4s) ease, visibility var(--t, 3.4s),
+                --hole var(--t, 3.4s) ease;
+  }
   .bootgo {
     display: inline-flex; align-items: center; gap: .62em;
     padding: .62em 1.5em .62em 1.25em; border-radius: 999px; cursor: var(--cur-on);
@@ -3624,13 +3651,40 @@
     ]);
 
     let started = false;
-    const start = () => {
-      if (started || bootGo.disabled) return;
-      started = true;
+    // How long the room sits in the dark with nothing but the wolf looking
+    // back at it before the lights come up.
+    const PEEK = 2.4;
+
+    const reveal = () => {
       boot.style.setProperty('--t', END_UP + 's');
+      boot.style.setProperty('--hole', '160px');   // the light spreads out of the eyes
       boot.classList.add('gone');
       document.body.classList.remove('booting');
       setTimeout(() => hint.classList.add('fade'), 6000);
+    };
+
+    const start = () => {
+      if (started || bootGo.disabled) return;
+      started = true;
+      boot.classList.add('peeking');
+
+      // Measured off the crest rather than placed by hand: the two holes have
+      // to land on the eyes at whatever size the screen happens to be.
+      const eyes = [...document.querySelectorAll('#crest .c-wolf .eye')]
+        .map((e) => e.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0);
+      if (eyes.length !== 2) { reveal(); return; }   // no crest, no cold open
+
+      eyes.forEach((r, i) => {
+        boot.style.setProperty(`--ex${i}`, `${Math.round(r.left + r.width / 2)}px`);
+        boot.style.setProperty(`--ey${i}`, `${Math.round(r.top + r.height / 2)}px`);
+      });
+      // Sized off the eye itself, so the hole frames it rather than swallowing
+      // the muzzle around it.
+      const wide = Math.max(...eyes.map((r) => Math.max(r.width, r.height)));
+      boot.style.setProperty('--hole', `${Math.max(9, Math.round(wide * 0.62))}px`);
+      boot.classList.add('peek');
+      setTimeout(reveal, PEEK * 1000);
     };
     ready.then(() => {
       bootGo.disabled = false;
