@@ -899,6 +899,52 @@
     letter-spacing: .1em; transition: opacity .4s ease;
   }
   .bootnote.gone { opacity: 0; }
+
+  /* Before any of that, on a machine with a mouse and a window that is not
+     filling the screen: one key, and nothing else to do. The cap carries both
+     letters because the deck is driven on an Arabic layout, where that same
+     physical key types ب — which is why the handler matches on e.code and not
+     on the character, and the cap should not claim otherwise. */
+  .bootstage { display: grid; justify-items: center; gap: clamp(14px, 2.6vmin, 34px); }
+  #boot.needfs #bootStart, #boot:not(.needfs) #bootFs { display: none; }
+  #boot.needfs .bootnote { opacity: 0; }
+  .keycap {
+    position: relative; display: grid; place-items: center;
+    width: clamp(74px, 12.5vmin, 158px); aspect-ratio: 1;
+    border-radius: clamp(12px, 2vmin, 24px);
+    background: linear-gradient(#1d2517, #10160c);
+    border: 2px solid rgba(255, 246, 220, .2);
+    box-shadow: inset 0 2px 0 rgba(255, 246, 220, .13),
+                inset 0 -6px 0 rgba(0, 0, 0, .55),
+                0 7px 0 rgba(255, 246, 220, .07),
+                0 20px 44px rgba(0, 0, 0, .65);
+    font-family: 'Poster Display', sans-serif;
+    animation: keyTap 2.8s ease-in-out infinite;
+  }
+  .keycap b { font-size: clamp(30px, 5.2vmin, 64px); font-weight: 800; color: #FFF3C4;
+              line-height: 1; margin-bottom: .22em; }
+  .keycap i { position: absolute; bottom: .62em; font-style: normal; font-weight: 700;
+              font-size: clamp(13px, 2vmin, 25px); color: rgba(255, 210, 63, .62); }
+  /* It presses itself every few seconds, which says press me without a word. */
+  @keyframes keyTap {
+    0%, 74%, 100% { transform: translateY(0); }
+    80% { transform: translateY(6px); }
+    88% { transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .keycap { animation: none; } }
+  .bootline {
+    margin: 0; font-family: 'Poster Display', sans-serif; font-weight: 800;
+    font-size: clamp(17px, 2.8vmin, 36px); color: #FFF3C4;
+    -webkit-text-stroke: .035em #22160b; paint-order: stroke fill;
+  }
+  /* Never a trap: whoever cannot or will not go full screen has a way past. */
+  .bootskip {
+    background: none; border: 0; cursor: pointer; padding: .5em;
+    color: rgba(255, 246, 220, .34); font-size: clamp(11px, 1.5vmin, 17px);
+    font-family: 'Poster Text', sans-serif; text-decoration: underline;
+    text-underline-offset: .35em; transition: color .2s ease;
+  }
+  .bootskip:hover { color: rgba(255, 246, 220, .7); }
   /* Nothing behind the curtain runs until the curtain goes up, so the title
      card's own beat starts from its first frame rather than from wherever it
      had got to while the images were still arriving. */
@@ -1190,10 +1236,17 @@
 </head>
 <body>
 <div class="boot" id="boot">
-  <button class="bootgo" id="bootGo" disabled>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.4 18.4 12 9 17.6z"/></svg>
-    <span>ابدأ العرض</span>
-  </button>
+  <div class="bootstage" id="bootFs">
+    <kbd class="keycap"><b>F</b><i>ب</i></kbd>
+    <p class="bootline">اضغط لملء الشاشة</p>
+    <button class="bootskip" id="bootSkip">المتابعة بدون ملء الشاشة</button>
+  </div>
+  <div class="bootstage" id="bootStart">
+    <button class="bootgo" id="bootGo" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.4 18.4 12 9 17.6z"/></svg>
+      <span>ابدأ العرض</span>
+    </button>
+  </div>
   <p class="bootnote" id="bootNote">جارٍ التحضير…</p>
 </div>
 
@@ -3606,7 +3659,26 @@
     const boot = document.getElementById('boot');
     const bootGo = document.getElementById('bootGo');
     const bootNote = document.getElementById('bootNote');
+    const bootSkip = document.getElementById('bootSkip');
     document.body.classList.add('booting');
+
+    // A pointer that hovers is a mouse, which means a machine with a keyboard
+    // and a window that may well not be filling the screen. Phones and the
+    // room's own touch panel skip this entirely — there is no F to press.
+    const desktop = matchMedia('(hover: hover) and (pointer: fine)').matches;
+    // Both kinds of full screen count. F11 is the browser's own and never sets
+    // fullscreenElement, so the window being exactly as tall as the display is
+    // the other half of the test — without it, someone who did the obvious
+    // thing would still be looking at a card telling them to press F.
+    const isFull = () => !!document.fullscreenElement
+      || Math.abs(innerHeight - screen.height) <= 2;
+    let wantFs = desktop && !isFull();
+    const stage = () => boot.classList.toggle('needfs', wantFs);
+    const cleared = () => { if (wantFs && isFull()) { wantFs = false; stage(); } };
+    stage();
+    document.addEventListener('fullscreenchange', cleared);
+    addEventListener('resize', cleared);
+    bootSkip.addEventListener('click', () => { wantFs = false; stage(); });
 
     const image = (src) => new Promise((done) => {
       const i = new Image();
@@ -3637,7 +3709,21 @@
     bootGo.addEventListener('click', start);
     // Any key does it too — a presenter with a clicker has no pointer.
     document.addEventListener('keydown', (e) => {
-      if (!started) { e.preventDefault(); e.stopPropagation(); start(); }
+      if (started) return;
+      if (wantFs) {
+        // Only F is ours here. Everything else falls through untouched, which
+        // is what lets F11 reach the browser and do the same job.
+        if (e.code === 'KeyF' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault();
+          document.documentElement.requestFullscreen?.().catch(() => {
+            wantFs = false; stage();   // refused: do not strand anyone on it
+          });
+        }
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      start();
     }, { capture: true });
   }
 
