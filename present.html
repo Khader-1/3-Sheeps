@@ -862,6 +862,48 @@
   /* And then the lights go out. Over everything, including the overview, so
      the section change underneath it is never seen — the deck comes back up
      on the title as if it had started again. */
+  /* ---- the cold start ---------------------------------------------------
+     The deck used to come up mid-load, with the poster and the cast arriving
+     over the first few seconds in front of whoever was watching. It opens on
+     black now and waits to be started, which also means the fonts, the
+     backdrop and the cast are all in before anything is shown.
+
+     It comes up on the same slow fade the closing slide comes back on — the
+     duration is handed over from END_UP rather than written twice — so the
+     deck opens exactly the way it closes, and the loop from the last slide
+     round to the first is seamless. */
+  .boot {
+    position: fixed; inset: 0; z-index: 10000; background: #000;
+    display: grid; place-items: center; gap: 0;
+    transition: opacity var(--t, 3.4s) ease, visibility var(--t, 3.4s);
+  }
+  .boot.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+  .bootgo {
+    display: inline-flex; align-items: center; gap: .62em;
+    padding: .62em 1.5em .62em 1.25em; border-radius: 999px; cursor: pointer;
+    font-family: 'Poster Display', sans-serif; font-weight: 800;
+    font-size: clamp(18px, 3.1vmin, 40px); line-height: 1;
+    color: #FFF3C4; background: rgba(255, 246, 220, .07);
+    border: 2px solid rgba(255, 246, 220, .26);
+    -webkit-text-stroke: .035em #22160b; paint-order: stroke fill;
+    transition: opacity .5s ease, background .2s ease,
+                border-color .2s ease, transform .18s ease;
+  }
+  .bootgo svg { width: 1em; height: 1em; fill: currentColor; stroke: none; }
+  .bootgo:hover { background: rgba(255, 246, 220, .14); border-color: rgba(255, 210, 63, .5); }
+  .bootgo:active { transform: scale(.97); }
+  .bootgo[disabled] { opacity: .22; cursor: default; }
+  .bootnote {
+    position: absolute; bottom: 14vh; margin: 0;
+    color: rgba(255, 246, 220, .32); font-size: clamp(11px, 1.5vmin, 17px);
+    letter-spacing: .1em; transition: opacity .4s ease;
+  }
+  .bootnote.gone { opacity: 0; }
+  /* Nothing behind the curtain runs until the curtain goes up, so the title
+     card's own beat starts from its first frame rather than from wherever it
+     had got to while the images were still arriving. */
+  body.booting .deck, body.booting .deck * { animation-play-state: paused !important; }
+
   .blackout {
     position: fixed; inset: 0; background: #000; z-index: 9999;
     opacity: 0; pointer-events: none; transition: opacity var(--t, 2.6s) ease;
@@ -1147,6 +1189,13 @@
 </style>
 </head>
 <body>
+<div class="boot" id="boot">
+  <button class="bootgo" id="bootGo" disabled>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.4 18.4 12 9 17.6z"/></svg>
+    <span>ابدأ العرض</span>
+  </button>
+  <p class="bootnote" id="bootNote">جارٍ التحضير…</p>
+</div>
 
 <div class="deck" id="deck">
 
@@ -2224,7 +2273,7 @@
       brows.forEach((n, i) => wrap(n, i < brows.length / 2 ? 'brow browL' : 'brow browR'));
     }
   }
-  liveCrest();
+  const crestReady = liveCrest();
 
   /**
    * rig.place(), but measured against a box taken once rather than now.
@@ -3547,11 +3596,55 @@
     document.head.appendChild(s);
   }
 
+  // ---- the cold start ----------------------------------------------------
+  // Held on black until the fonts, the backdrop and the cast are all in, so
+  // the first thing the room sees is the finished title card rather than the
+  // title card assembling itself. Then it comes up on END_UP — the same fade
+  // the closing slide returns on, taken from the same constant so the open and
+  // the close cannot drift apart.
+  {
+    const boot = document.getElementById('boot');
+    const bootGo = document.getElementById('bootGo');
+    const bootNote = document.getElementById('bootNote');
+    document.body.classList.add('booting');
+
+    const image = (src) => new Promise((done) => {
+      const i = new Image();
+      i.onload = i.onerror = done;
+      i.src = src;
+    });
+    // A ceiling on the wait as well: a backdrop that never arrives is a worse
+    // outcome than a backdrop that arrives late, and nobody should be left
+    // looking at a button they cannot press.
+    const ready = Promise.race([
+      Promise.all([document.fonts?.ready, crestReady, image('out/poster-wide.png')]),
+      new Promise((r) => setTimeout(r, 9000)),
+    ]);
+
+    let started = false;
+    const start = () => {
+      if (started || bootGo.disabled) return;
+      started = true;
+      boot.style.setProperty('--t', END_UP + 's');
+      boot.classList.add('gone');
+      document.body.classList.remove('booting');
+      setTimeout(() => hint.classList.add('fade'), 6000);
+    };
+    ready.then(() => {
+      bootGo.disabled = false;
+      bootNote.textContent = 'اضغط أي مفتاح للبدء';
+    });
+    bootGo.addEventListener('click', start);
+    // Any key does it too — a presenter with a clicker has no pointer.
+    document.addEventListener('keydown', (e) => {
+      if (!started) { e.preventDefault(); e.stopPropagation(); start(); }
+    }, { capture: true });
+  }
+
   // ---- go --------------------------------------------------------------
   slides[0].classList.add('on');
   dots[0].classList.add('on');
   markOver(0);
-  setTimeout(() => hint.classList.add('fade'), 6000);
   addEventListener('mousemove', () => {
     hint.classList.remove('fade');
     clearTimeout(hint._t);
