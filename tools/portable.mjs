@@ -45,20 +45,76 @@ const PORT = 8123;
 
 // A launcher has to survive being double-clicked from Finder, where the working
 // directory is the user's home and not the folder the script is sitting in.
+// Looking past PATH is the point of find_py / find_node, not belt-and-braces.
+//
+// This script waits for someone to install a runtime while it is running, and
+// a shell that has already started never sees the PATH an installer just
+// edited — python.org writes it into ~/.zprofile, which this process will not
+// read until it is restarted, which is exactly what the waiting is meant to
+// avoid. So the known install locations are checked directly. Node's macOS
+// package lands in /usr/local/bin, already on PATH; Python's does not.
+//
+// The -c '' probe is there for /usr/bin/python3, which exists on every Mac
+// even when Python does not: without the Command Line Tools it is a stub that
+// pops a dialog and exits. Running the probe pops that dialog once, which is
+// better than the deck failing to start behind it.
 const MAC = `#!/bin/bash
 # افتح العرض — الخراف الثلاثة والذئب الماكر
 cd "$(dirname "$0")" || exit 1
 PORT=${PORT}
+
+find_py() {
+  hash -r 2>/dev/null
+  for c in python3 python /usr/local/bin/python3 /opt/homebrew/bin/python3 \\
+           /Library/Frameworks/Python.framework/Versions/*/bin/python3; do
+    command -v "$c" >/dev/null 2>&1 || continue
+    "$c" -c '' >/dev/null 2>&1 && { echo "$c"; return 0; }
+  done
+  return 1
+}
+
+find_node() {
+  hash -r 2>/dev/null
+  for c in node /usr/local/bin/node /opt/homebrew/bin/node; do
+    command -v "$c" >/dev/null 2>&1 && { echo "$c"; return 0; }
+  done
+  return 1
+}
+
+# Replaces this process when it finds something, so returning at all means
+# there is still nothing to run.
+serve() {
+  if PY=$(find_py); then
+    open "http://localhost:$PORT/present.html" 2>/dev/null &
+    exec "$PY" server.py $PORT
+  fi
+  if ND=$(find_node); then
+    open "http://localhost:$PORT/present.html" 2>/dev/null &
+    exec "$ND" server.mjs $PORT
+  fi
+  return 1
+}
+
 echo "…يجهّز العرض"
-open "http://localhost:$PORT/present.html" 2>/dev/null &
-if command -v python3 >/dev/null 2>&1; then exec python3 -m http.server $PORT
-elif command -v python  >/dev/null 2>&1; then exec python  -m http.server $PORT
-elif command -v node    >/dev/null 2>&1; then exec node server.mjs $PORT
-fi
+serve
+
 echo ""
-echo "لم يُعثر على Python أو Node على هذا الجهاز."
-echo "ثبّت أحدهما ثم أعد المحاولة، أو افتح out/book.html مباشرة — الكتاب يعمل وحده."
-read -n 1 -s -r -p "اضغط أي مفتاح للإغلاق"
+echo "لازم Python أو Node، وما لقيت ولا واحد فيهم على الجهاز."
+echo "رح أفتحلك صفحات التحميل — نزّل أي واحد منهم، وهاي الشاشة بتكمّل لحالها."
+echo ""
+echo "   Python   https://www.python.org/downloads/macos/"
+echo "   Node     https://nodejs.org/en/download"
+echo ""
+echo "أو سكّر هاي الشاشة وافتح  out/book.html  بالضغط المزدوج — الكتاب يعمل وحده."
+echo ""
+open "https://www.python.org/downloads/macos/" 2>/dev/null
+open "https://nodejs.org/en/download" 2>/dev/null
+printf "…بستنّى التثبيت. خلّي هاي الشاشة مفتوحة  (Ctrl-C للإلغاء)"
+while true; do
+  sleep 3
+  printf "."
+  serve
+done
 `;
 
 // Written CRLF and in plain ASCII, and both of those are load-bearing.
@@ -85,37 +141,61 @@ setlocal
 cd /d "%~dp0"
 set "PORT=${PORT}"
 echo Starting the presentation...
-start "" "http://localhost:%PORT%/present.html"
 
-where py      >nul 2>&1 && goto :py
-where python  >nul 2>&1 && goto :python
-where python3 >nul 2>&1 && goto :python3
-where node    >nul 2>&1 && goto :node
-goto :none
+call :find
+if not errorlevel 1 goto :run
 
-:py
-py -3 -m http.server %PORT%
-goto :done
-
-:python
-python -m http.server %PORT%
-goto :done
-
-:python3
-python3 -m http.server %PORT%
-goto :done
-
-:node
-node server.mjs %PORT%
-goto :done
-
-:none
 echo.
 echo Python or Node is required, and neither was found.
-echo Install either one, then run this again.
-echo Or open  out\\book.html  directly - the book works on its own.
+echo Opening both download pages now. Install either one and this window
+echo picks it up on its own - no need to run anything again.
 echo.
-pause
+echo    Python   https://www.python.org/downloads/windows/
+echo    Node     https://nodejs.org/en/download
+echo.
+echo On the Python installer, tick "Add python.exe to PATH" on the first screen.
+echo.
+echo Or close this and open  out\\book.html  directly - the book works alone.
+echo.
+start "" "https://www.python.org/downloads/windows/"
+start "" "https://nodejs.org/en/download"
+echo Waiting for the install. Leave this window open.  Ctrl-C cancels.
+
+:wait
+timeout /t 3 /nobreak >nul 2>&1 || ping -n 4 127.0.0.1 >nul 2>&1
+call :find
+if errorlevel 1 goto :wait
+
+:run
+start "" "http://localhost:%PORT%/present.html"
+%RUNCMD%
+goto :done
+
+rem Sets RUNCMD and returns 0, or returns 1 with nothing found.
+rem
+rem PATH is checked first, then the two default install directories. An
+rem installer edits the environment of shells started after it, never this
+rem one, so a fresh install can be sitting on disk while where.exe still says
+rem no - and this script's whole job at that point is to notice it.
+rem
+rem py.exe is looked for first because the Windows Python launcher goes into
+rem the Windows directory itself, which is always on PATH. It is the one part
+rem of a Python install that shows up without a restart.
+:find
+set "RUNCMD="
+where py >nul 2>&1 && set "RUNCMD=py -3 server.py %PORT%"
+if defined RUNCMD exit /b 0
+where python >nul 2>&1 && set "RUNCMD=python server.py %PORT%"
+if defined RUNCMD exit /b 0
+where python3 >nul 2>&1 && set "RUNCMD=python3 server.py %PORT%"
+if defined RUNCMD exit /b 0
+where node >nul 2>&1 && set "RUNCMD=node server.mjs %PORT%"
+if defined RUNCMD exit /b 0
+if exist "%ProgramFiles%\\nodejs\\node.exe" set RUNCMD="%ProgramFiles%\\nodejs\\node.exe" server.mjs %PORT%
+if defined RUNCMD exit /b 0
+for /d %%D in ("%LocalAppData%\\Programs\\Python\\Python3*") do if exist "%%~D\\python.exe" set RUNCMD="%%~D\\python.exe" server.py %PORT%
+if defined RUNCMD exit /b 0
+exit /b 1
 
 :done
 endlocal
@@ -123,6 +203,116 @@ endlocal
 
 /** cmd.exe needs CRLF; bash does not care either way. */
 const toCrlf = (s) => s.replace(/\r?\n/g, '\r\n');
+
+// The Python server, and the reason it exists rather than `-m http.server`.
+//
+// That module does not carry a MIME table; it asks the machine, through
+// mimetypes, which on Windows means the registry — and in the registry .js is
+// very commonly text/plain. A browser will not execute a module served as
+// text/plain, so every import in the deck is refused and the page comes up
+// blank behind a console full of "blocked because of a disallowed MIME type".
+// It is not a rare misconfiguration; it is the default on a lot of machines,
+// and it is invisible until the moment it is not. The table below is the whole
+// fix — the same one server.mjs already carried, which is why the Node path
+// never showed the bug.
+//
+// Range is the other thing the stock module lacks. Without it the film cannot
+// be seeked: the browser asks for a slice and is handed the file from the top.
+//
+// Python 3.7+ for ThreadingHTTPServer. Anything older serves one request at a
+// time, and a page that pulls three hundred files would crawl.
+const PYSERVER = `# Static server for the offline bundle.  python server.py [port]
+import os, re, sys, http.server
+
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else ${PORT}
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+TYPES = {
+    '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+    '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.webmanifest': 'application/manifest+json',
+    '.svg': 'image/svg+xml; charset=utf-8', '.png': 'image/png',
+    '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff2': 'font/woff2',
+    '.woff': 'font/woff', '.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8',
+    '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4',
+    '.mp4': 'video/mp4', '.m4s': 'video/iso.segment',
+    '.m3u8': 'application/vnd.apple.mpegurl',
+}
+
+
+class H(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *a, **kw):
+        super().__init__(*a, directory=ROOT, **kw)
+
+    def guess_type(self, path):
+        return TYPES.get(os.path.splitext(path)[1].lower(), 'application/octet-stream')
+
+    def send_head(self):
+        self._left = None
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            path = os.path.join(path, 'index.html')
+        try:
+            f = open(path, 'rb')
+        except OSError:
+            self.send_error(404, 'File not found')
+            return None
+
+        size = os.fstat(f.fileno()).st_size
+        ctype = self.guess_type(path)
+        m = re.match(r'bytes=(\\d*)-(\\d*)$', self.headers.get('Range') or '')
+
+        if m and (m.group(1) or m.group(2)):
+            if m.group(1):
+                start = int(m.group(1))
+                end = int(m.group(2)) if m.group(2) else size - 1
+            else:
+                # A suffix range: the last N bytes.
+                start, end = max(0, size - int(m.group(2))), size - 1
+            end = min(end, size - 1)
+            if start > end:
+                f.close()
+                self.send_response(416)
+                self.send_header('Content-Range', 'bytes */%d' % size)
+                self.end_headers()
+                return None
+            f.seek(start)
+            self._left = end - start + 1
+            self.send_response(206)
+            self.send_header('Content-Range', 'bytes %d-%d/%d' % (start, end, size))
+            self.send_header('Content-Length', str(self._left))
+        else:
+            self.send_response(200)
+            self.send_header('Content-Length', str(size))
+
+        self.send_header('Content-Type', ctype)
+        self.send_header('Accept-Ranges', 'bytes')
+        self.end_headers()
+        return f
+
+    def copyfile(self, source, out):
+        # A browser abandons media requests constantly — every seek cancels one
+        # in flight. That is normal traffic, not a fault, and it should not
+        # print a traceback into the window the presenter is looking at.
+        try:
+            left = self._left
+            if left is None:
+                return super().copyfile(source, out)
+            while left > 0:
+                chunk = source.read(min(65536, left))
+                if not chunk:
+                    break
+                out.write(chunk)
+                left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+
+
+print('http://localhost:%d/present.html' % PORT)
+http.server.ThreadingHTTPServer(('127.0.0.1', PORT), H).serve_forever()
+`;
 
 // The Node fallback. Deliberately tiny and dependency-free — it is a last
 // resort, not the project's server.
@@ -173,6 +363,17 @@ const README = `الخراف الثلاثة والذئب الماكر
 بيفتح المتصفح على العرض لحاله. لو ما فتح، افتح المتصفح على:
   http://localhost:${PORT}/present.html
 
+العرض بحاجة Python أو Node — أي واحد فيهم، بدون أي إضافات.
+الماك عادةً معه Python جاهز. الويندوز غالباً لأ.
+
+لو ما كان ولا واحد منهم على الجهاز، الملف بيفتحلك صفحتين التحميل لحاله
+وبيضل مستنّي — نزّل أي واحد فيهم وهو بيكمّل من عنده، بدون ما تشغّله مرة تانية:
+
+  Python   https://www.python.org/downloads/
+  Node     https://nodejs.org/en/download
+
+على ويندوز، بمثبّت Python حطّ علامة على "Add python.exe to PATH" بأول شاشة.
+
 في الملف:
   present.html        العرض كامل — إعلان ١ و٢، الفيلم، الملصق، الألعاب، الكتاب
   index.html          الألعاب السبع لحالها
@@ -218,6 +419,7 @@ fs.writeFileSync(path.join(STAGE, 'START-HERE.command'), MAC);
 fs.chmodSync(path.join(STAGE, 'START-HERE.command'), 0o755);
 fs.writeFileSync(path.join(STAGE, 'START-HERE.bat'), toCrlf(WIN));
 fs.writeFileSync(path.join(STAGE, 'server.mjs'), SERVER);
+fs.writeFileSync(path.join(STAGE, 'server.py'), PYSERVER);
 fs.writeFileSync(path.join(STAGE, 'اقرأني.txt'), README);
 
 fs.rmSync(ZIP, { force: true });

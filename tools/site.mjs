@@ -80,8 +80,14 @@ const DELIVERABLES = [
   // list would be unreadable spelled out.
   'out/film/',
   'out/book.html',
-  // The cast cluster that stands over the deck's title.
+  // The cast cluster that stands over the deck's title. Both forms: the PNG is
+  // what the markup carries and what a print gets, and the SVG is what
+  // liveCrest() fetches to replace it with — the same picture, but with every
+  // character reachable as nodes, which is what the title's flinch and the
+  // cold open's eyes are both built on. Shipping only the PNG left the crest
+  // looking right and quietly killed both of those.
   'out/heads/trio.png',
+  'out/heads/trio.svg',
 ];
 
 const files = tracked.filter((f) => !EXCLUDE.some((re) => re.test(f)));

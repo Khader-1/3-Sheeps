@@ -1615,6 +1615,30 @@
   function onKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+    // Fullscreen is answered first, ahead of everything else this handler does.
+    //
+    // A browser only grants requestFullscreen() while it still believes it is
+    // handling the keypress, and Firefox measures that from the press itself —
+    // one wall-clock second — not from when this function gets to run. On a
+    // cold load, with the deck's art still arriving, a keydown can wait in the
+    // queue long enough to miss the window, and the request comes back
+    // rejected. Nothing here can buy that second back. What this handler can
+    // do is not spend any of it: the request goes out before the digit match
+    // and before the count is dismissed.
+    //
+    // ب is what this key types on an Arabic layout, and the deck is presented
+    // in Arabic; e.code is the physical key whatever the layout says, and e.key
+    // is still read so a synthesised event without a code still works.
+    //
+    // A refusal is caught and dropped. It does not deserve a red console line —
+    // the presenter presses F again, or F11, and gets there.
+    if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'ب') {
+      e.preventDefault();
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen?.().catch(() => {});
+      return;
+    }
+
     // A number goes straight to that section, counting from the title as one —
     // the same number the rail shows in the corner. Read off the code and not
     // the character: this deck is presented on an Arabic layout, where the
@@ -1636,8 +1660,7 @@
 
     // The count is a flourish, never a wait.
     if (tally.classList.contains('on')) { countDone(); return; }
-    // The layout decides which letter a key types; the key is what was meant.
-    const key = e.code === 'KeyF' ? 'f' : e.key;
+    const key = e.key;
     const onBook = slides[at].id === 's-book';
     switch (key) {
       case 'Escape':
@@ -1670,14 +1693,6 @@
         else next();
         break;
       }
-      // ب is what that key types on an Arabic layout, and this deck is driven
-      // in Arabic. Matched on e.code rather than listed letter by letter, so
-      // it is the physical key that means fullscreen whatever the layout is
-      // set to; e.key is still read for the Latin case, since a keyboard event
-      // synthesised without a code has one.
-      case 'f': case 'F': case 'ب':
-        document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
-        break;
       default:
         if (/^[1-9]$/.test(key)) go(+key - 1);
         else return;
