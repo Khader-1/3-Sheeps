@@ -914,21 +914,30 @@
      but its own hole, and the intersection is opaque everywhere but both. On
      anything that does not do mask-composite the layers merely add up to
      opaque, which is a plain black hold — the right thing to degrade to. */
-  @property --hole { syntax: '<length>'; initial-value: 11px; inherits: false; }
+  /* An ellipse per eye, not a circle. The wolf's eye is about nineteen by
+     eight — a circle wide enough to clear it is also eight pixels of muzzle
+     above and below, which is a face in the dark rather than a pair of eyes.
+     Registered so they can be transitioned at all; a plain custom property
+     cannot be. */
+  @property --rx0 { syntax: '<length>'; initial-value: 12px; inherits: false; }
+  @property --ry0 { syntax: '<length>'; initial-value: 6px; inherits: false; }
+  @property --rx1 { syntax: '<length>'; initial-value: 12px; inherits: false; }
+  @property --ry1 { syntax: '<length>'; initial-value: 6px; inherits: false; }
   .boot.peeking .bootstage, .boot.peeking .bootnote {
     opacity: 0; transition: opacity .3s ease;
   }
   .boot.peek {
     -webkit-mask-image:
-      radial-gradient(circle at var(--ex0) var(--ey0), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7)),
-      radial-gradient(circle at var(--ex1) var(--ey1), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7));
+      radial-gradient(ellipse var(--rx0) var(--ry0) at var(--ex0) var(--ey0), transparent 0 78%, #000 100%),
+      radial-gradient(ellipse var(--rx1) var(--ry1) at var(--ex1) var(--ey1), transparent 0 78%, #000 100%);
     -webkit-mask-composite: source-in;
     mask-image:
-      radial-gradient(circle at var(--ex0) var(--ey0), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7)),
-      radial-gradient(circle at var(--ex1) var(--ey1), transparent 0 var(--hole), #000 calc(var(--hole) * 2.7));
+      radial-gradient(ellipse var(--rx0) var(--ry0) at var(--ex0) var(--ey0), transparent 0 78%, #000 100%),
+      radial-gradient(ellipse var(--rx1) var(--ry1) at var(--ex1) var(--ey1), transparent 0 78%, #000 100%);
     mask-composite: intersect;
     transition: opacity var(--t, 3.4s) ease, visibility var(--t, 3.4s),
-                --hole var(--t, 3.4s) ease;
+                --rx0 var(--t, 3.4s) ease, --ry0 var(--t, 3.4s) ease,
+                --rx1 var(--t, 3.4s) ease, --ry1 var(--t, 3.4s) ease;
   }
   .bootgo {
     display: inline-flex; align-items: center; gap: .62em;
@@ -3657,7 +3666,8 @@
 
     const reveal = () => {
       boot.style.setProperty('--t', END_UP + 's');
-      boot.style.setProperty('--hole', '160px');   // the light spreads out of the eyes
+      // The holes open out of the eyes until they have swallowed the frame.
+      for (const n of ['rx0', 'ry0', 'rx1', 'ry1']) boot.style.setProperty(`--${n}`, '1400px');
       boot.classList.add('gone');
       document.body.classList.remove('booting');
       setTimeout(() => hint.classList.add('fade'), 6000);
@@ -3679,10 +3689,13 @@
         boot.style.setProperty(`--ex${i}`, `${Math.round(r.left + r.width / 2)}px`);
         boot.style.setProperty(`--ey${i}`, `${Math.round(r.top + r.height / 2)}px`);
       });
-      // Sized off the eye itself, so the hole frames it rather than swallowing
-      // the muzzle around it.
-      const wide = Math.max(...eyes.map((r) => Math.max(r.width, r.height)));
-      boot.style.setProperty('--hole', `${Math.max(9, Math.round(wide * 0.62))}px`);
+      // One ellipse per eye, cut to that eye. The gradient runs clear to 78%
+      // of each radius, so at 1.28 of the half-size the clear part lands on
+      // the eye itself and only the feather falls outside it.
+      eyes.forEach((r, i) => {
+        boot.style.setProperty(`--rx${i}`, `${Math.max(6, r.width / 2 * 1.28).toFixed(1)}px`);
+        boot.style.setProperty(`--ry${i}`, `${Math.max(4, r.height / 2 * 1.28).toFixed(1)}px`);
+      });
       boot.classList.add('peek');
       setTimeout(reveal, PEEK * 1000);
     };
