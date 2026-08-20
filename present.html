@@ -819,6 +819,25 @@
      talking over the end of a screening should never be standing in front of
      a slide that has finished. */
   #s-end .thanks { transition: opacity 1.4s ease; }
+  /* Under the thanks and above the moral. The film's own brick red inside the
+     same heavy dark outline the title carries, so it belongs to the poster
+     rather than arriving from a font of symbols. Two beats and a rest, which
+     is what a heartbeat is — a single even pulse reads as a throb. */
+  #s-end .heart {
+    display: block; margin: .5em auto 0;
+    width: clamp(24px, 4.2vmin, 58px); height: auto;
+    fill: #ac3836; stroke: #22160b; stroke-width: 2.4; paint-order: stroke fill;
+    filter: drop-shadow(0 .06em .22em rgba(0,0,0,.55));
+    transform-origin: 50% 62%;
+    animation: heartBeat 2.6s ease-in-out infinite;
+  }
+  @keyframes heartBeat {
+    0%, 60%, 100% { transform: scale(1); }
+    66% { transform: scale(1.14); }
+    72% { transform: scale(1.02); }
+    78% { transform: scale(1.10); }
+  }
+  @media (prefers-reduced-motion: reduce) { #s-end .heart { animation: none; } }
   #s-end .thanks.gone { opacity: 0; }
   .roll {
     position: absolute; inset: 0; display: grid; place-items: center;
@@ -1256,7 +1275,8 @@
     <div class="stage" style="z-index:1">
       <div class="thanks" id="thanks" style="text-align:center">
         <h1 class="titled">شكراً لكم</h1>
-        <div class="sub" style="margin-top:1.2em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
+        <svg class="heart" viewBox="0 0 32 29" aria-hidden="true"><path d="M16 28.2 3.7 15.9a7.55 7.55 0 0 1 0-10.7 7.55 7.55 0 0 1 10.7 0L16 6.8l1.6-1.6a7.55 7.55 0 0 1 10.7 0 7.55 7.55 0 0 1 0 10.7z"/></svg>
+        <div class="sub" style="margin-top:.85em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
         <div class="build" id="build"></div>
       </div>
       <div class="roll" id="roll" aria-hidden="true"></div>
