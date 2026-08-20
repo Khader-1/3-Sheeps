@@ -1236,8 +1236,8 @@
 
 
   <!-- 2 ------------------------------------------------------------- -->
-  <section class="slide full" id="s-promo" data-title="إعلان ١" data-name="إعلان ١">
-    <div class="head"><div class="kicker">٠١ — الإعلان التشويقي</div><h2>إعلان ١</h2></div>
+  <section class="slide full" id="s-promo" data-title="عرض تشويق" data-name="عرض تشويق">
+    <div class="head"><div class="kicker">٠١ — تشويق</div><h2>عرض تشويق</h2></div>
     <div class="stage">
       <video id="v-promo" src="out/promo-1.mp4" preload="metadata" playsinline controls></video>
       <div class="tap" data-for="v-promo"><span>▶</span></div>
@@ -1246,22 +1246,9 @@
   </section>
 
   <!-- 3 ------------------------------------------------------------- -->
-  <!-- Only this one preloads nothing: two trailers back to back would have
-       the second one pulling its first megabytes while the first is still
-       playing, over whatever wifi the hall has. -->
-  <section class="slide full" id="s-promo2" data-title="إعلان ٢" data-name="إعلان ٢">
-    <div class="head"><div class="kicker">٠٢ — الإعلان التشويقي</div><h2>إعلان ٢</h2></div>
-    <div class="stage">
-      <video id="v-promo2" src="out/promo-2.mp4" preload="none" playsinline controls></video>
-      <div class="tap" data-for="v-promo2"><span>▶</span></div>
-    </div>
-    <div class="foot"><span>٢٧ ثانية</span></div>
-  </section>
-
-  <!-- 4 ------------------------------------------------------------- -->
   <section class="slide full" id="s-film" data-title="الفيلم" data-name="الفيلم">
     <div class="head">
-      <div class="kicker">٠٣ — الفيلم</div>
+      <div class="kicker">٠٢ — الفيلم</div>
       <h2>الفيلم</h2>
     </div>
     <div class="stage">
@@ -1271,6 +1258,25 @@
     </div>
     <div class="foot"><span>١٠:٥١ دقيقة · يبدأ العرض فوراً ويُحمَّل أثناء التشغيل</span></div>
   </section>
+
+  <!-- 4 ------------------------------------------------------------- -->
+  <!-- The teaser opens, the film plays, and the trailer comes after it — the
+       finished advert belongs beside the poster it was cut to sell, not in
+       front of the thing it is advertising.
+
+       Still the only video that preloads nothing, and now for a better reason
+       than before: it used to sit behind another trailer, and it now sits
+       behind eleven minutes of HLS. Nothing should be pulling its first
+       megabytes over the hall's wifi while that is streaming. -->
+  <section class="slide full" id="s-promo2" data-title="إعلان الفيلم" data-name="إعلان الفيلم">
+    <div class="head"><div class="kicker">٠٣ — الإعلان</div><h2>إعلان الفيلم</h2></div>
+    <div class="stage">
+      <video id="v-promo2" src="out/promo-2.mp4" preload="none" playsinline controls></video>
+      <div class="tap" data-for="v-promo2"><span>▶</span></div>
+    </div>
+    <div class="foot"><span>٢٧ ثانية</span></div>
+  </section>
+
   <!-- 5 ------------------------------------------------------------- -->
   <section class="slide" id="s-poster" data-title="الملصق" data-name="الملصق">
     <div class="pano scenery" style="--art:url('out/poster-wide-bg.svg')"></div>
