@@ -1054,7 +1054,7 @@
      trigger, which is why the poster backdrop is already treated this way,
      and hiding the artwork would be answering a different complaint. */
   .outroart .sheet.on.drift,
-  .outroart .sheet.on .drift { animation: artDrift 20s linear both; }
+  .outroart .sheet.on .drift { animation: artDrift 30s linear both; }
   @keyframes artDrift {
     from { transform: translate(var(--dx0, 0px), var(--dy0, 0px)); }
     to   { transform: translate(var(--dx1, 0px), var(--dy1, 0px)); }
@@ -2988,10 +2988,10 @@
   // Long enough that it never comes back round: the titles run once and the
   // section ends itself at about seventy-three seconds, which is inside one
   // rest. The chase gets its three crossings at the top and that is all.
-  const RUN_REST = 90;
+  const RUN_REST = 130;
   const RUN_TOTAL = RUN_CYCLE + RUN_REST;
   const ART_AT = 7;          // s: right behind the first credit card
-  const ART_HOLD = 20;       // and how long each one holds
+  const ART_HOLD = 30;       // and how long each one holds
 
   const runBox = document.getElementById('runstrip');
   let runners = null, runRaf = 0, runWarm = null, runT0 = 0;
@@ -3110,8 +3110,8 @@
   ];
   const THANKS_OUT = 4.2;    // s: the length of the first pass, and a beat
   const CREDITS_AT = 5.9;    // and then the titles have the slide
-  const CARD_HOLD = 8.0;     // each one up, including its two fades
-  const LOGO_HOLD = 5.5;     // and the two logos that close it
+  const CARD_HOLD = 11.93;   // each one up, including its two fades
+  const LOGO_HOLD = 8.35;    // and the two logos that close it
   // Fade down, sit in the dark a moment, then come up on the title again.
   const END_FADE = 2.6, END_BLACK = 1.0, END_UP = 3.4;
   // The titles, then the college, then the house that made it. Each card
@@ -3123,9 +3123,12 @@
     { logo: 'assets/logos/pixel-media.png', hold: LOGO_HOLD },
   ];
   const ROLL_ENDS = ROLL.reduce((a, c) => [...a, (a[a.length - 1] || 0) + c.hold], []);
-  // When the last of the black arrives — the roll, plus the fade out of it.
-  // Derived rather than typed, so adding a credit card moves the music with it.
-  const OUTRO_END = CREDITS_AT + ROLL_ENDS[ROLL_ENDS.length - 1] + END_FADE;
+  // The music belongs to the titles: in when the thanks has gone and the first
+  // card is up, out when the last one is done. The fade to black after it is
+  // deliberately silent — the piece finishes, and then the lights go down.
+  // Derived rather than typed, so adding a card moves the music with it.
+  const OUTRO_FROM = CREDITS_AT;
+  const OUTRO_END = CREDITS_AT + ROLL_ENDS[ROLL_ENDS.length - 1];
   const rollBox = document.getElementById('roll');
   const thanksEl = document.getElementById('thanks');
   const blackout = document.getElementById('blackout');
@@ -3303,7 +3306,7 @@
         rig.place({ x, y, height: h });
       }
       markDraw(g, 0.014);
-      drift(g, W * 0.17, 0, -W * 0.17, 0);            // right to left
+      drift(g, W * 0.254, 0, -W * 0.254, 0);          // right to left
     }
 
     // ---- the cast, measured ------------------------------------------
@@ -3326,7 +3329,7 @@
       }
       g.insertBefore(core.svgEl('line', { x1: -W * 0.12, x2: W * 1.12, y1: base, y2: base }), g.firstChild);
       markDraw(g, 0.012);
-      drift(g, -W * 0.15, 0, W * 0.15, 0);            // and back the other way
+      drift(g, -W * 0.226, 0, W * 0.226, 0);          // and back the other way
     }
 
     // ---- the scenes, as a wall ---------------------------------------
@@ -3365,7 +3368,7 @@
       // is half what a single sliding sheet would take: about thirty pixels a
       // second each, sixty between neighbours. Well under half the overspill,
       // so no row ever shows its end.
-      const travel = (CW - W) * 0.32;
+      const travel = (CW - W) * 0.42;
       band.forEach((row, r) => {
         const ltr = r % 2 === 0;
         drift(row, ltr ? -travel : travel, 0, ltr ? travel : -travel, 0);
@@ -3410,7 +3413,7 @@
       // plan, centred, and the whole of it is the point — so it gets a slow
       // rise instead, enough that it is not a still and not enough to look
       // like it is drifting off its mark.
-      drift(g, 0, H * 0.037, 0, -H * 0.037);
+      drift(g, 0, H * 0.055, 0, -H * 0.055);
     }
 
     outroArt = { sheets };
@@ -3433,20 +3436,25 @@
 
   // ---- the closing music --------------------------------------------------
   //
-  // Twenty-six seconds of tune against ninety-one of closing slide, and the
-  // ask was that the two end together. So it runs three whole passes and the
-  // third one lands on the black: the start is worked back from the end
-  // rather than the end being faded out of, which is the difference between
-  // a piece finishing and a piece being stopped.
+  // Two minutes and four seconds of tune under the roll of titles: in when the
+  // thanks has gone and the first card is up, out on the last frame of the
+  // last one. One pass, and the roll is cut to it — 11.93 a card and 8.35 a
+  // logo comes to 124.07s against a 124.03s piece, which is four hundredths
+  // of a second apart and is taken up by the start rather than the end.
   //
-  // Three passes is 77.5s, which puts the first note at 14.0s — and the chase
-  // finishes at 14.45. That was not arranged, but it is kept: the gag plays
-  // in silence and the music comes in as the titles take the slide.
+  // The piece sets the length. Nine cards at about twelve seconds is a long
+  // hold by the standards of a slide and an ordinary one by the standards of
+  // a credit roll, which is what this is.
+  //
+  // Anchored at the end and worked back, so a different piece dropped in here
+  // still lands its last note on the last card — it finds the whole passes
+  // that fit the roll and starts wherever that puts it.
   //
   // Web Audio rather than an <audio loop>. An MP3 carries encoder padding at
-  // both ends, so looping an element leaves a gap at every seam and the third
-  // pass would not land where the arithmetic says. A decoded buffer loops
-  // sample-accurately and stops on a scheduled clock time.
+  // both ends, so a looping element leaves a gap at every seam and lands late.
+  // A decoded buffer loops sample-accurately and stops on a scheduled clock
+  // time — which matters here even at one pass, because the stop is what puts
+  // the last note on the black.
   const OUTRO_SRC = 'assets/audio/outro.mp3';
   const OUTRO_GAIN = 0.72;   // it plays under someone talking over it
   let actx = null, outroBuf = null, outroWarm = null, outroSrc = null;
@@ -3477,7 +3485,7 @@
       // back a slightly different length than the container claims, and it is
       // the decoded length the loop actually runs at.
       const d = outroBuf.duration;
-      const passes = Math.max(1, Math.floor(OUTRO_END / d));
+      const passes = Math.max(1, Math.round((OUTRO_END - OUTRO_FROM) / d));
       const lead = Math.max(0, OUTRO_END - passes * d);
       const gain = actx.createGain();
       gain.gain.value = OUTRO_GAIN;
