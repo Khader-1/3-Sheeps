@@ -1759,7 +1759,7 @@
   function onEnter(s) {
     if (s.id === 's-games') { mountGames(); countUp(); }
     if (s.id === 's-film') mountFilm();
-    if (s.id === 's-end') startRun(); else stopRun();
+    if (s.id === 's-end') { startRun(); startOutro(); } else { stopRun(); stopOutro(); }
     if (s.id === 's-book') mountBook();
     // Started on the way in and killed on the way out, rather than left to
     // run: it is a per-frame rig pose, and two of them ticking behind the film
@@ -3123,6 +3123,9 @@
     { logo: 'assets/logos/pixel-media.png', hold: LOGO_HOLD },
   ];
   const ROLL_ENDS = ROLL.reduce((a, c) => [...a, (a[a.length - 1] || 0) + c.hold], []);
+  // When the last of the black arrives — the roll, plus the fade out of it.
+  // Derived rather than typed, so adding a credit card moves the music with it.
+  const OUTRO_END = CREDITS_AT + ROLL_ENDS[ROLL_ENDS.length - 1] + END_FADE;
   const rollBox = document.getElementById('roll');
   const thanksEl = document.getElementById('thanks');
   const blackout = document.getElementById('blackout');
@@ -3428,6 +3431,67 @@
     }
   }
 
+  // ---- the closing music --------------------------------------------------
+  //
+  // Twenty-six seconds of tune against ninety-one of closing slide, and the
+  // ask was that the two end together. So it runs three whole passes and the
+  // third one lands on the black: the start is worked back from the end
+  // rather than the end being faded out of, which is the difference between
+  // a piece finishing and a piece being stopped.
+  //
+  // Three passes is 77.5s, which puts the first note at 14.0s — and the chase
+  // finishes at 14.45. That was not arranged, but it is kept: the gag plays
+  // in silence and the music comes in as the titles take the slide.
+  //
+  // Web Audio rather than an <audio loop>. An MP3 carries encoder padding at
+  // both ends, so looping an element leaves a gap at every seam and the third
+  // pass would not land where the arithmetic says. A decoded buffer loops
+  // sample-accurately and stops on a scheduled clock time.
+  const OUTRO_SRC = 'assets/audio/outro.mp3';
+  const OUTRO_GAIN = 0.72;   // it plays under someone talking over it
+  let actx = null, outroBuf = null, outroWarm = null, outroSrc = null;
+
+  function warmOutro() {
+    if (!outroWarm) outroWarm = (async () => {
+      try {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        const res = await fetch(OUTRO_SRC);
+        if (!res.ok) return;
+        outroBuf = await actx.decodeAudioData(await res.arrayBuffer());
+      } catch { outroBuf = null; }
+    })();
+    return outroWarm;
+  }
+
+  function stopOutro() {
+    try { outroSrc?.stop(); } catch { /* already stopped */ }
+    outroSrc = null;
+  }
+
+  function startOutro() {
+    stopOutro();
+    warmOutro().then(() => {
+      if (!outroBuf || !document.getElementById('s-end').classList.contains('on')) return;
+      actx.resume?.();
+      // Measured off the decoded buffer, not off the file: a decoder may hand
+      // back a slightly different length than the container claims, and it is
+      // the decoded length the loop actually runs at.
+      const d = outroBuf.duration;
+      const passes = Math.max(1, Math.floor(OUTRO_END / d));
+      const lead = Math.max(0, OUTRO_END - passes * d);
+      const gain = actx.createGain();
+      gain.gain.value = OUTRO_GAIN;
+      gain.connect(actx.destination);
+      outroSrc = actx.createBufferSource();
+      outroSrc.buffer = outroBuf;
+      outroSrc.loop = true;
+      outroSrc.connect(gain);
+      const from = actx.currentTime + lead;
+      outroSrc.start(from);
+      outroSrc.stop(from + passes * d);   // the end of a pass, not a cut
+    });
+  }
+
   function stopRun() {
     cancelAnimationFrame(runRaf);
     runRaf = 0;
@@ -3664,6 +3728,7 @@
       if (started || bootGo.disabled) return;
       started = true;
       boot.classList.add('peeking');
+      warmOutro();   // decoded long before the closing slide needs it
 
       // Lifted out of the crest rather than cut out of the black. Cloned,
        // not <use>d: a use across two svg roots wants an id and a shared
