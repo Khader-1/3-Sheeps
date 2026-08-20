@@ -29,11 +29,24 @@
        stays sharp on a projector. The larger one is the hover state: with
        every cursor a disc there is no arrow-to-hand change left to signal
        that a thing can be clicked, so size does it instead. The keyword after
-       each is the fallback for anywhere that refuses a custom cursor. */
+       each is the fallback for anywhere that refuses a custom cursor.
+
+       While it is moving it picks up a ring in the title's own cream, and
+       loses it again half a second after it stops. A black disc on a dark
+       section is close to invisible, which is right for a pointer nobody is
+       using and useless for one somebody is — so it is only lit while it is
+       being moved. The hotspot sits on the centre of the disc in all four, so
+       swapping between them never shifts the point. */
     --cur: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='9' cy='9' r='7' fill='%23000'/%3E%3C/svg%3E") 9 9, default;
+    --cur-mv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='7' fill='%23000' stroke='%23FFF3C4' stroke-width='2'/%3E%3C/svg%3E") 10 10, default;
+    --cur-mv-on: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Ccircle cx='14' cy='14' r='10.5' fill='%23000' stroke='%23FFF3C4' stroke-width='2'/%3E%3C/svg%3E") 14 14, pointer;
     --cur-on: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Ccircle cx='13' cy='13' r='10.5' fill='%23000'/%3E%3C/svg%3E") 13 13, pointer;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body.moving { cursor: var(--cur-mv); }
+  body.moving :is(a, button, .over li, .tap, .rail b, .btn, .vbtn, .vtrack) {
+    cursor: var(--cur-mv-on);
+  }
   html, body { cursor: var(--cur);
     margin: 0; height: 100%; overflow: hidden;
     background: var(--ink); color: var(--paper);
@@ -3648,7 +3661,14 @@
   slides[0].classList.add('on');
   dots[0].classList.add('on');
   markOver(0);
+  // The ring goes on with the first movement and comes off half a second
+  // after the last — a class either side of the gesture rather than a write
+  // per event, so the cursor image is swapped twice and not two hundred times.
+  let moveOff = 0;
   addEventListener('mousemove', () => {
+    document.body.classList.add('moving');
+    clearTimeout(moveOff);
+    moveOff = setTimeout(() => document.body.classList.remove('moving'), 500);
     hint.classList.remove('fade');
     clearTimeout(hint._t);
     hint._t = setTimeout(() => hint.classList.add('fade'), 3000);
