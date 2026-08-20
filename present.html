@@ -996,17 +996,23 @@
      enough to wrap — the travel is set so the sheet still covers the frame at
      both ends of it.
 
+     The travel is set so it reads as a sheet being pulled past rather than a
+     picture that shifted: about thirty pixels a second, which is under what
+     the eye tracks and over what it dismisses, and thirteen seconds of it.
+
      Reduce Motion takes the pan and leaves the sheet. A slow full-screen
      drift is the one thing on this deck that actually is a vestibular
      trigger, which is why the poster backdrop is already treated this way,
      and hiding the artwork would be answering a different complaint. */
-  .outroart .sheet.on.drift { animation: artDrift 11s linear both; }
+  .outroart .sheet.on.drift,
+  .outroart .sheet.on .drift { animation: artDrift 13s linear both; }
   @keyframes artDrift {
     from { transform: translate(var(--dx0, 0px), var(--dy0, 0px)); }
     to   { transform: translate(var(--dx1, 0px), var(--dy1, 0px)); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .outroart .sheet.drift { animation: none !important; transform: none !important; }
+    .outroart .sheet.drift, .outroart .sheet .drift {
+      animation: none !important; transform: none !important; }
   }
   /* The flicker is on a wrapper of its own. The group underneath carries the
      transform that puts the flame on the end of the tail, and transform-box:
@@ -2932,7 +2938,7 @@
   const RUN_REST = 90;
   const RUN_TOTAL = RUN_CYCLE + RUN_REST;
   const ART_LEAD = 3;        // s into the rest before the first sheet
-  const ART_HOLD = 10;       // and how long each one holds
+  const ART_HOLD = 13;       // and how long each one holds
 
   const runBox = document.getElementById('runstrip');
   let runners = null, runRaf = 0, runWarm = null, runT0 = 0;
@@ -3164,9 +3170,10 @@
   // the same house from a similar angle, and neighbours that repeat read as a
   // mistake. Small panels and a lot of them also help — a contact sheet is
   // meant to be scanned, not read.
-  const ART_SCENES = ['مشهد5', 'مشهد7', 'مشهد9', 'مشهد11', 'مشهد12', 'مشهد13',
-                      'مشهد15', 'مشهد16', 'مشهد19', 'مشهد20', 'مشهد21', 'مشهد22',
-                      'مشهد23', 'مشهد25', 'المشهد27الاخير'];
+  const ART_SCENES = ['مشهد5', 'مشهد6', 'مشهد7', 'مشهد8', 'مشهد9', 'مشهد10',
+                      'مشهد11', 'مشهد12', 'مشهد13', 'مشهد15', 'مشهد16', 'مشهد19',
+                      'مشهد20', 'مشهد21', 'مشهد22', 'مشهد23', 'مشهد25',
+                      'المشهد27الاخير'];
   const artBox = document.getElementById('outroart');
   let outroArt = null, artWarm = null, artShown = -1;
 
@@ -3237,7 +3244,7 @@
         rig.place({ x, y, height: h });
       }
       markDraw(g, 0.014);
-      drift(g, W * 0.035, H * 0.012, -W * 0.035, -H * 0.012);
+      drift(g, W * 0.105, 0, -W * 0.105, 0);          // right to left
     }
 
     // ---- the cast, measured ------------------------------------------
@@ -3260,37 +3267,50 @@
       }
       g.insertBefore(core.svgEl('line', { x1: -W * 0.12, x2: W * 1.12, y1: base, y2: base }), g.firstChild);
       markDraw(g, 0.012);
-      drift(g, -W * 0.045, 0, W * 0.045, 0);
+      drift(g, -W * 0.095, 0, W * 0.095, 0);          // and back the other way
     }
 
     // ---- the scenes, as a wall ---------------------------------------
     {
       const g = make('panels', 1.3, 0.13);
-      // Laid out across a canvas half again the size of the frame and centred
-      // on it, so at any moment about four columns of it are showing and the
-      // drift brings the rest through.
-      const cols = 5, rows = 3;
-      const CW = W * 1.34, CH = H * 1.26;
+      // Each row is its own group and each scrolls against the one above it —
+      // left, right, left. One block sliding across reads as a picture that
+      // moved; three rows passing each other reads as a wall going by, and it
+      // is the same arithmetic either way.
+      const cols = 6, rows = 3;
+      const CW = W * 1.62, CH = H * 1.22;
       const ox = -(CW - W) / 2, oy = -(CH - H) / 2;
       const pw = CW / cols, ph = CH / rows;
+      const band = [];
+      for (let r = 0; r < rows; r++) {
+        const row = core.svgEl('g');
+        g.appendChild(row);
+        band.push(row);
+      }
       for (const [i, name] of ART_SCENES.entries()) {
         if (i >= cols * rows) break;
         const c = i % cols, r = (i / cols) | 0;
-        const x = ox + c * pw + pw * 0.10, y = oy + r * ph + ph * 0.13;
-        const w = pw * 0.80, h = ph * 0.74;
+        const x = ox + c * pw + pw * 0.09, y = oy + r * ph + ph * 0.12;
+        const w = pw * 0.82, h = ph * 0.76;
         let art;
         try { art = await stage.loadScene(name); } catch { continue; }
         const cell = core.svgEl('g', { class: 'panel' });
-        cell.style.setProperty('--d', (i * 0.13).toFixed(2) + 's');
+        cell.style.setProperty('--d', (i * 0.1).toFixed(2) + 's');
         const port = core.svgEl('svg', { x, y, width: w, height: h,
           viewBox: '0 0 1280 720', preserveAspectRatio: 'xMidYMid slice' });
         port.appendChild(art);
         cell.append(port, core.svgEl('rect', { x, y, width: w, height: h, rx: 5, opacity: 0.65 }));
-        g.appendChild(cell);
+        band[r].appendChild(cell);
       }
-      // Half the overspill each way, so the edge of the sheet never comes
-      // into frame at either end of the travel.
-      drift(g, (CW - W) * 0.34, (CH - H) * 0.30, -(CW - W) * 0.34, -(CH - H) * 0.30);
+      // Rows moving against each other read at twice their own speed, so this
+      // is half what a single sliding sheet would take: about thirty pixels a
+      // second each, sixty between neighbours. Well under half the overspill,
+      // so no row ever shows its end.
+      const travel = (CW - W) * 0.21;
+      band.forEach((row, r) => {
+        const ltr = r % 2 === 0;
+        drift(row, ltr ? -travel : travel, 0, ltr ? travel : -travel, 0);
+      });
     }
 
     // ---- the house, as a plan ----------------------------------------
@@ -3326,10 +3346,12 @@
         L(x, gy, x - 15, gy + 17);
       }
       markDraw(g, 0.008);
-      // No drift on this one. The other three are sheets of drawings and a
-      // sheet can sit at an angle to the frame; this is a plan, centred, and
-      // the whole of it is the point. Sliding it would only say it did not
-      // quite fit.
+      // The only one that does not scroll sideways. The other three are
+      // sheets of drawings and a sheet can be pulled past the frame; this is a
+      // plan, centred, and the whole of it is the point — so it gets a slow
+      // rise instead, enough that it is not a still and not enough to look
+      // like it is drifting off its mark.
+      drift(g, 0, H * 0.024, 0, -H * 0.024);
     }
 
     outroArt = { sheets };
