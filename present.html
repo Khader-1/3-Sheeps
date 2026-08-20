@@ -905,39 +905,28 @@
   .boot.gone { opacity: 0; visibility: hidden; pointer-events: none; }
 
   /* The cold open. Between the button being pressed and the room coming up,
-     the black holds for a couple of seconds with two holes punched in it over
-     the wolf's eyes — the real ones, measured off the crest, so when the light
-     comes up they are already exactly where they were and nothing jumps.
-     Then the holes widen as the black fades and the scene arrives out of them.
+     the black holds for a couple of seconds with the wolf's eyes in it, and
+     nothing else at all.
 
-     Two mask layers composited to an intersection: each is opaque everywhere
-     but its own hole, and the intersection is opaque everywhere but both. On
-     anything that does not do mask-composite the layers merely add up to
-     opaque, which is a plain black hold — the right thing to degrade to. */
-  /* An ellipse per eye, not a circle. The wolf's eye is about nineteen by
-     eight — a circle wide enough to clear it is also eight pixels of muzzle
-     above and below, which is a face in the dark rather than a pair of eyes.
-     Registered so they can be transitioned at all; a plain custom property
-     cannot be. */
-  @property --rx0 { syntax: '<length>'; initial-value: 12px; inherits: false; }
-  @property --ry0 { syntax: '<length>'; initial-value: 6px; inherits: false; }
-  @property --rx1 { syntax: '<length>'; initial-value: 12px; inherits: false; }
-  @property --ry1 { syntax: '<length>'; initial-value: 6px; inherits: false; }
+     The eyes are the crest's own, copied out of it and drawn on top of the
+     black rather than revealed by cutting a hole in it. A hole is a shape,
+     and no shape that is not the eye is the eye: an ellipse tight enough to
+     miss the muzzle also clips the corners off, and one wide enough to hold
+     the corners brings fur with it. Lifting the artwork out has no edge of
+     its own — what shows is the eye, exactly, because it is the eye.
+
+     Placed with the matrix that maps the eye's own coordinate space onto the
+     screen, so the copy lands on the original to the pixel. When the black
+     goes, the copy goes with it and the real one underneath is already there:
+     nothing moves, nothing crossfades. */
   .boot.peeking .bootstage, .boot.peeking .bootnote {
     opacity: 0; transition: opacity .3s ease;
   }
-  .boot.peek {
-    -webkit-mask-image:
-      radial-gradient(ellipse var(--rx0) var(--ry0) at var(--ex0) var(--ey0), transparent 0 78%, #000 100%),
-      radial-gradient(ellipse var(--rx1) var(--ry1) at var(--ex1) var(--ey1), transparent 0 78%, #000 100%);
-    -webkit-mask-composite: source-in;
-    mask-image:
-      radial-gradient(ellipse var(--rx0) var(--ry0) at var(--ex0) var(--ey0), transparent 0 78%, #000 100%),
-      radial-gradient(ellipse var(--rx1) var(--ry1) at var(--ex1) var(--ey1), transparent 0 78%, #000 100%);
-    mask-composite: intersect;
-    transition: opacity var(--t, 3.4s) ease, visibility var(--t, 3.4s),
-                --rx0 var(--t, 3.4s) ease, --ry0 var(--t, 3.4s) ease,
-                --rx1 var(--t, 3.4s) ease, --ry1 var(--t, 3.4s) ease;
+  .peekeyes {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    /* A little of the dark clings to them, the way it would. */
+    filter: brightness(.86) drop-shadow(0 0 6px rgba(0, 0, 0, .9));
   }
   .bootgo {
     display: inline-flex; align-items: center; gap: .62em;
@@ -3666,8 +3655,6 @@
 
     const reveal = () => {
       boot.style.setProperty('--t', END_UP + 's');
-      // The holes open out of the eyes until they have swallowed the frame.
-      for (const n of ['rx0', 'ry0', 'rx1', 'ry1']) boot.style.setProperty(`--${n}`, '1400px');
       boot.classList.add('gone');
       document.body.classList.remove('booting');
       setTimeout(() => hint.classList.add('fade'), 6000);
@@ -3678,28 +3665,62 @@
       started = true;
       boot.classList.add('peeking');
 
-      // Measured off the crest rather than placed by hand: the two holes have
-      // to land on the eyes at whatever size the screen happens to be.
-      const eyes = [...document.querySelectorAll('#crest .c-wolf .eye')]
-        .map((e) => e.getBoundingClientRect())
-        .filter((r) => r.width > 0 && r.height > 0);
-      if (eyes.length !== 2) { reveal(); return; }   // no crest, no cold open
+      // Lifted out of the crest rather than cut out of the black. Cloned,
+       // not <use>d: a use across two svg roots wants an id and a shared
+       // document space, and a copy of a few dozen paths for two and a half
+       // seconds costs nothing.
+      const eyes = [...document.querySelectorAll('#crest .c-wolf .eye')];
+      const ns = 'http://www.w3.org/2000/svg';
+      const peek = document.createElementNS(ns, 'svg');
+      peek.setAttribute('class', 'peekeyes');
+      peek.setAttribute('viewBox', `0 0 ${innerWidth} ${innerHeight}`);
+      const pairs = [];
+      for (const eye of eyes) {
+        // The parent's matrix, not the eye's: getScreenCTM() on the eye
+        // already carries the eye's own transform, and the copy carries it
+        // again — so it would be applied twice and the eye would sit off the
+        // face. The space the eye lives in is what has to be matched.
+        const m = eye.parentNode.getScreenCTM && eye.parentNode.getScreenCTM();
+        if (!m) continue;
+        const g = document.createElementNS(ns, 'g');
+        g.dataset.m = `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`;
+        g.setAttribute('transform', g.dataset.m);
+        g.appendChild(eye.cloneNode(true));
+        peek.appendChild(g);
+        pairs.push([g, eye]);
+      }
+      if (!pairs.length) { reveal(); return; }   // no crest, no cold open
+      boot.appendChild(peek);
 
-      eyes.forEach((r, i) => {
-        boot.style.setProperty(`--ex${i}`, `${Math.round(r.left + r.width / 2)}px`);
-        boot.style.setProperty(`--ey${i}`, `${Math.round(r.top + r.height / 2)}px`);
-      });
-      // One ellipse per eye, cut to that eye. The gradient runs clear to 78%
-      // of each radius, so at 1.28 of the half-size the clear part lands on
-      // the eye exactly and only the feather falls outside it — which is right
-      // vertically and a touch wide across, because the corners of the eye
-      // taper to nothing and the last two pixels of the opening are muzzle.
-      // 1.15 across takes those two back.
-      eyes.forEach((r, i) => {
-        boot.style.setProperty(`--rx${i}`, `${Math.max(5, r.width / 2 * 1.15).toFixed(1)}px`);
-        boot.style.setProperty(`--ry${i}`, `${Math.max(4, r.height / 2 * 1.28).toFixed(1)}px`);
-      });
-      boot.classList.add('peek');
+      // And then keep checking, rather than trusting once. Two things are
+      // true here: getScreenCTM lands these a few pixels out to begin with,
+      // and the crest is still settling when the button is pressed — the eye
+      // slides about five pixels over the first half second and only then
+      // holds. Correcting once, at the moment of cloning, corrects against a
+      // position the eye is about to leave.
+      //
+      // So the copies are pinned to the originals for as long as they are up:
+      // two rects and at most two attribute writes a frame, for two and a
+      // half seconds, which buys correctness against any cause — this one, or
+      // whatever a screen it has not met does instead.
+      const lock = () => {
+        if (boot.classList.contains('gone')) return;
+        for (const [g, eye] of pairs) {
+          const want = eye.getBoundingClientRect();
+          const got = g.getBoundingClientRect();
+          const dx = want.x - got.x, dy = want.y - got.y;
+          if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+            const at = g.dataset.at ? g.dataset.at.split(' ').map(Number) : [0, 0];
+            at[0] += dx; at[1] += dy;
+            g.dataset.at = `${at[0]} ${at[1]}`;
+            g.setAttribute('transform',
+              `translate(${at[0].toFixed(2)} ${at[1].toFixed(2)}) ${g.dataset.m}`);
+          }
+        }
+        requestAnimationFrame(lock);
+      };
+      lock();
+
       setTimeout(reveal, PEEK * 1000);
     };
     ready.then(() => {
