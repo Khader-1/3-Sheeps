@@ -1028,42 +1028,85 @@
     transition: opacity .18s ease, visibility .18s;
   }
   .over.on { opacity: 1; visibility: visible; }
-  .over ol { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(6px,1.1vmin,14px); }
-  .over li {
-    display: flex; align-items: baseline; gap: 1em; cursor: pointer; padding: .3em .8em;
-    border-radius: 12px; font-size: clamp(20px, 3.6vmin, 44px); font-weight: 700;
-    font-family: 'Poster Display', sans-serif;
-  }
-  /* The seven you are not going to sit back, so the one you are can come
-     forward. Without this every line is the same cream and the destination is
-     distinguished only by being slightly larger, which does not carry to the
-     back of a room. */
-  .over li { color: rgba(255, 246, 220, .38); }
-  .over li:hover { background: rgba(255,246,220,.1); color: var(--paper); }
-  .over li i { font-style: normal; color: rgba(255,210,63,.42); font-size: .6em; width: 1.4em; }
-  .over li em { font-style: normal; font-size: .48em; color: var(--muted); font-family: 'Poster Text', sans-serif; font-weight: 600; }
-
   /* Every move between sections goes through here and holds for a beat and a
-     half, which makes this the most-looked-at screen in the deck — and it was
-     a flat list on near-black. The section being headed for now gets the
-     poster's own treatment, cream inside a heavy dark outline, so the moment
-     reads as part of the film rather than as a menu.
+     half, which makes this the most-looked-at screen in the deck. It used to
+     be a column of eight text rows three hundred pixels wide on a sixteen
+     hundred pixel screen: most of the frame empty, and reading as a menu.
 
-     Scaled rather than set larger: font-size would reflow the list and shove
-     the other seven around every time the destination changed. Origin on the
-     right because the list is RTL and the numbers are the fixed edge. */
-  .over li.on {
-    background: none;
-    color: #FFF3C4;
-    -webkit-text-stroke: .085em #22160b;
-    paint-order: stroke fill;
-    text-shadow: 0 .04em .14em rgba(0,0,0,.6);
-    transform: scale(1.14);
-    transform-origin: right center;
+     A switcher now, the shape everyone already knows — one translucent bar of
+     drawn tiles floating over the deck, the destination lit, its name under
+     it. Which means the section you are leaving stays visible behind the
+     glass instead of being painted out, so a move reads as moving rather than
+     as a curtain being dropped and lifted. */
+  .over {
+    position: fixed; inset: 0; z-index: 40;
+    display: grid; place-content: center; padding: var(--pad);
+    background: rgba(6, 10, 4, .46);
+    -webkit-backdrop-filter: blur(26px) saturate(.7) brightness(.62);
+    backdrop-filter: blur(26px) saturate(.7) brightness(.62);
+    opacity: 0; visibility: hidden;
+    transition: opacity .18s ease, visibility .18s;
   }
-  .over li { transition: transform .34s cubic-bezier(.2,.9,.3,1.25), color .2s ease; }
-  .over li.on i { color: var(--gold); -webkit-text-stroke: 0; }
-  .over li.on em { color: rgba(255,246,220,.8); -webkit-text-stroke: 0; }
+  .over.on { opacity: 1; visibility: visible; }
+  .switcher { display: grid; justify-items: center; gap: clamp(12px, 2.2vmin, 28px); }
+  .over ol {
+    list-style: none; margin: 0; padding: clamp(8px, 1.3vmin, 18px);
+    display: flex; gap: clamp(4px, .8vw, 14px);
+    background: rgba(255, 246, 220, .07);
+    border: 1px solid rgba(255, 246, 220, .13);
+    border-radius: clamp(16px, 2.4vmin, 28px);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
+  }
+  .over li { cursor: pointer; }
+  .over li .tile {
+    display: grid; place-items: center;
+    width: clamp(50px, 9vmin, 112px); aspect-ratio: 1;
+    border-radius: clamp(11px, 1.7vmin, 20px);
+    color: rgba(255, 246, 220, .40);
+    transition: background .18s ease, color .18s ease,
+                transform .3s cubic-bezier(.2,.9,.3,1.25);
+  }
+  .over li:hover .tile { background: rgba(255, 246, 220, .09); color: var(--paper); }
+  .over li svg {
+    width: 56%; height: auto; display: block;
+    fill: none; stroke: currentColor; stroke-width: 1.7;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  /* The destination, boxed the way a switcher boxes its selection. */
+  .over li.on .tile {
+    background: rgba(255, 246, 220, .17); color: #FFF3C4;
+    box-shadow: inset 0 0 0 1.5px rgba(255, 210, 63, .5),
+                0 .5vmin 2.4vmin rgba(0, 0, 0, .4);
+    transform: scale(1.07);
+  }
+  .over li.on svg { stroke-width: 2.1; }
+  /* And a mark under the one being left, so a jump from five to two reads as
+     a journey between two places rather than as one place lighting up. */
+  .over li.from .tile { color: rgba(255, 246, 220, .66); position: relative; }
+  .over li.from .tile::after {
+    content: ''; position: absolute; bottom: .5em;
+    width: .5em; height: .5em; border-radius: 50%;
+    background: rgba(255, 210, 63, .55);
+  }
+  /* Only the destination is named — eight labels at once is the list this
+     stopped being. Poster treatment, so it belongs to the film. */
+  .pick {
+    font-family: 'Poster Display', sans-serif; font-weight: 800; text-align: center;
+    font-size: clamp(22px, 4.2vmin, 54px); color: #FFF3C4; line-height: 1.2;
+    -webkit-text-stroke: .05em #22160b; paint-order: stroke fill;
+    text-shadow: 0 .04em .18em rgba(0, 0, 0, .6);
+  }
+  .pick small {
+    display: block; margin-top: .55em; font-size: .4em; font-weight: 600;
+    font-family: 'Poster Text', sans-serif; color: var(--muted);
+    -webkit-text-stroke: 0; text-shadow: none;
+  }
+  /* The tiles arrive in order rather than all at once — the beat and a half
+     this holds for is long enough to notice that nothing moved. */
+  .over.on li { animation: overIn .38s cubic-bezier(.2,.9,.3,1.2) both;
+                animation-delay: calc(var(--k) * .03s); }
+  @keyframes overIn { from { opacity: 0; transform: translateY(14px); } }
+  @media (prefers-reduced-motion: reduce) { .over.on li { animation: none; } }
 
   /* The list arrives instead of appearing, top to bottom. Eight items, so the
      whole run is over in a third of a second and never delays the move. */
@@ -1231,7 +1274,7 @@
   <span><kbd>F</kbd><kbd>ب</kbd> ملء الشاشة</span>
 </div>
 
-<div class="over" id="over"><ol id="overList"></ol></div>
+<div class="over" id="over"><div class="switcher"><ol id="overList"></ol><div class="pick" id="overPick"></div></div></div>
 
 <script type="module">
   const slides = [...document.querySelectorAll('.slide')];
@@ -1245,6 +1288,28 @@
   let at = 0;
 
   // ---- chrome ---------------------------------------------------------
+  // ---- the switcher's tiles ---------------------------------------------
+  // Drawn rather than written, one per section, in the deck's own line: a
+  // title card, two trailers, a reel, a page, a controller, a book, and the
+  // house the story ends in. All on a 24 grid so one stroke width reads the
+  // same across the row, and all stroke and no fill so `currentColor` can
+  // light them from the tile.
+  const ICONS = {
+    's-title':  '<rect x="3" y="5" width="18" height="14" rx="2.6"/><path d="M7.5 10.5h9M7.5 14h5.5"/>',
+    's-promo':  '<rect x="3" y="5" width="18" height="14" rx="2.6"/><path d="M10.5 9.2l5 2.8-5 2.8z"/>',
+    's-promo2': '<rect x="3" y="5" width="18" height="14" rx="2.6"/><path d="M10.5 9.2l5 2.8-5 2.8z"/>',
+    's-film':   '<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M7 5.5v13M17 5.5v13'
+              + 'M4.3 8.4h1.4M4.3 12h1.4M4.3 15.6h1.4M18.3 8.4h1.4M18.3 12h1.4M18.3 15.6h1.4"/>',
+    's-poster': '<rect x="6" y="3" width="12" height="18" rx="1.8"/><path d="M9 7.5h6M9 10.5h3.5"/>',
+    's-games':  '<rect x="2.5" y="8" width="19" height="9" rx="4.5"/>'
+              + '<path d="M7.4 10.9v3.2M5.8 12.5h3.2"/><circle cx="16.1" cy="11.9" r=".95"/>'
+              + '<circle cx="18.3" cy="14.1" r=".95"/>',
+    's-book':   '<path d="M12 6.6v12.8"/><path d="M12 6.6C10 5.1 7.6 4.7 4.6 5v12.4c3-.3 5.4.1 7.4 1.6"/>'
+              + '<path d="M12 6.6c2-1.5 4.4-1.9 7.4-1.6v12.4c-3-.3-5.4.1-7.4 1.6"/>',
+    's-end':    '<path d="M4.4 11.2 12 5l7.6 6.2"/><path d="M6.1 11v8h11.8v-8"/>'
+              + '<path d="M6.1 14.8h11.8"/><path d="M10.3 19v-4.2h3.4V19"/>',
+  };
+
   slides.forEach((s, i) => {
     const dot = document.createElement('b');
     dot.title = s.dataset.name;
@@ -1252,12 +1317,29 @@
     rail.appendChild(dot);
 
     const li = document.createElement('li');
-    li.innerHTML = `<i>${ar(i + 1)}</i><span>${s.dataset.name}</span> <em>${s.dataset.title}</em>`;
+    li.style.setProperty('--k', i);
+    li.title = s.dataset.name;
+    li.innerHTML = `<span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true">`
+      + `${ICONS[s.id] || ''}</svg></span>`;
     li.addEventListener('click', () => { closeOver(); go(i, true); });
     overList.appendChild(li);
   });
   const dots = [...rail.children];
   const overItems = [...overList.children];
+  const overPick = document.getElementById('overPick');
+
+  /** Light tile `i`, mark the one being left, and name the destination. */
+  function markOver(i, from) {
+    overItems.forEach((d, k) => {
+      d.classList.toggle('on', k === i);
+      d.classList.toggle('from', from !== undefined && k === from && k !== i);
+    });
+    // Several sections carry the same word for both, and «الألعاب» printed
+    // twice under its own icon reads as a mistake rather than as a subtitle.
+    const d = slides[i].dataset;
+    overPick.innerHTML = d.title && d.title !== d.name
+      ? `${d.name}<small>${d.title}</small>` : d.name;
+  }
 
   // ---- the poster window ----------------------------------------------
   // The veil over the panorama is cut to the box an A3 <img class="poster">
@@ -1371,7 +1453,7 @@
   function go(i, fromOverview = false) {
     i = Math.max(0, Math.min(slides.length - 1, i));
     if (i === at) return;
-    overItems.forEach((d, k) => d.classList.toggle('on', k === i));
+    markOver(i, at);
     if (fromOverview || moving) {
       clearTimeout(moveTimer);
       moving = false;
@@ -3457,7 +3539,7 @@
   // ---- go --------------------------------------------------------------
   slides[0].classList.add('on');
   dots[0].classList.add('on');
-  overItems[0].classList.add('on');
+  markOver(0);
   setTimeout(() => hint.classList.add('fade'), 6000);
   addEventListener('mousemove', () => {
     hint.classList.remove('fade');
