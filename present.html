@@ -1023,42 +1023,6 @@
     to   { transform: scale(1.14, .86) rotate(5deg); }
   }
 
-  /* ---- the closing house ----------------------------------------------
-     The last slide argues the moral, instead of only printing it. «أتقِنْ
-     عملك… فالبيتُ المتينُ يحميكَ» — so the sound house builds itself under the
-     line, course by course from the ground up, the way the eldest brother
-     built his and the other two did not.
-
-     Colours are the film's own, sampled off the closing frame: #ac3836 brick,
-     cream mortar between the courses, cream in the window. */
-  /* In the column with the words, not floating behind them — it is the last
-     line of the argument, so it reads after the moral and before the footer. */
-  .build { display: grid; place-items: center; margin-top: clamp(14px, 2.6vmin, 40px); }
-  .build svg { width: clamp(150px, 21vmin, 300px); height: auto; display: block;
-               filter: drop-shadow(0 .05em .07em rgba(0,0,0,.55)); }
-  /* Each course is dropped in from above and settles. The stagger is set per
-     brick in JS, because it runs bottom-up and along each course, and 56 hand
-     written delays in a stylesheet is not a thing anyone should maintain. */
-  .build .bk, .build .rf, .build .op { opacity: 0; animation-fill-mode: forwards; }
-  .build.go .bk { animation: brickIn .42s cubic-bezier(.22,1.2,.4,1) forwards; }
-  .build.go .rf { animation: roofIn .5s cubic-bezier(.22,1.15,.4,1) forwards; }
-  .build.go .op { animation: fadeIn .45s ease forwards; }
-  @keyframes brickIn {
-    from { opacity: 0; transform: translateY(-26px) rotate(-4deg); }
-    to   { opacity: 1; transform: none; }
-  }
-  @keyframes roofIn {
-    from { opacity: 0; transform: translateY(-52px) scale(.94); }
-    to   { opacity: 1; transform: none; }
-  }
-  @keyframes fadeIn { to { opacity: 1; } }
-  /* Somebody watching a projector from the back row should not be the only
-     one who never sees this land, so it is quick; and anyone who has said they
-     do not want motion gets the finished house with no build at all. */
-  @media (prefers-reduced-motion: reduce) {
-    .build .bk, .build .rf, .build .op { opacity: 1; animation: none !important; }
-  }
-
   /* ---- chrome -------------------------------------------------------- */
   .rail {
     position: fixed; inset: auto 0 clamp(10px, 1.6vmin, 22px) 0; z-index: 30;
@@ -1359,7 +1323,6 @@
       <div class="thanks" id="thanks" style="text-align:center">
         <h1 class="titled">شكراً لكم</h1>
         <div class="sub" style="margin-top:1.2em">أتقِنْ عملك… فالبيتُ المتينُ يحميكَ يوماً ما.</div>
-        <div class="build" id="build"></div>
       </div>
       <div class="roll" id="roll" aria-hidden="true"></div>
     </div>
@@ -1737,7 +1700,7 @@
   function onEnter(s) {
     if (s.id === 's-games') { mountGames(); countUp(); }
     if (s.id === 's-film') mountFilm();
-    if (s.id === 's-end') { buildHouse(); startRun(); } else stopRun();
+    if (s.id === 's-end') startRun(); else stopRun();
     if (s.id === 's-book') mountBook();
     // Started on the way in and killed on the way out, rather than left to
     // run: it is a per-frame rig pose, and two of them ticking behind the film
@@ -3517,93 +3480,6 @@
       }
     }
     runRaf = requestAnimationFrame(runFrame);
-  }
-
-  // ---- the closing house -----------------------------------------------
-  // Drawn here rather than written out as markup: the courses are a running
-  // bond, so every other one starts half a brick over and needs clipping at
-  // both ends, and the delays run bottom-up along each course. That is a loop,
-  // not a hundred lines of hand-kept SVG.
-  const H = { w: 200, h: 182, bx: 32, by: 74, bw: 136, bh: 96, cols: 7, rows: 8 };
-  const BRICK = '#ac3836', MORTAR = '#e9dcc4', ROOF = '#8f2b26', WOOD = '#4d2c13';
-  const STACK = '#7d5a44';
-
-  function buildHouse() {
-    const box = document.getElementById('build');
-    if (box.dataset.built) return;
-    box.dataset.built = '1';
-
-    const bw = H.bw / H.cols;
-    const bh = H.bh / H.rows;
-    const el = (t, a) => {
-      const n = document.createElementNS('http://www.w3.org/2000/svg', t);
-      for (const k in a) n.setAttribute(k, a[k]);
-      return n;
-    };
-
-    const svg = el('svg', { viewBox: `0 0 ${H.w} ${H.h}`, role: 'img',
-      'aria-label': 'بيتٌ من الطوب يُبنى' });
-    // Everything the courses draw is clipped to the wall, so the half brick a
-    // staggered course hangs over the edge simply is not there.
-    const defs = el('defs');
-    const clip = el('clipPath', { id: 'wall' });
-    clip.appendChild(el('rect', { x: H.bx, y: H.by, width: H.bw, height: H.bh }));
-    defs.appendChild(clip);
-    svg.appendChild(defs);
-
-    const walls = el('g', { 'clip-path': 'url(#wall)' });
-    walls.appendChild(el('rect', { x: H.bx, y: H.by, width: H.bw, height: H.bh, fill: MORTAR }));
-    svg.appendChild(walls);
-
-    const PER = 26;                       // between bricks along a course
-    const COURSE = 90;                    // between courses
-    let last = 0;
-    for (let r = 0; r < H.rows; r++) {
-      const y = H.by + H.bh - (r + 1) * bh;          // bottom course first
-      const shift = r % 2 ? -bw / 2 : 0;              // running bond
-      for (let c = -1; c <= H.cols; c++) {
-        const x = H.bx + c * bw + shift;
-        if (x + bw <= H.bx || x >= H.bx + H.bw) continue;
-        const d = r * COURSE + (c + 1) * PER;
-        last = Math.max(last, d);
-        walls.appendChild(el('rect', {
-          class: 'bk', x: x + 0.7, y: y + 0.7, width: bw - 1.4, height: bh - 1.4,
-          rx: 1, fill: BRICK, style: `animation-delay:${d}ms`,
-        }));
-      }
-    }
-
-    // Chimney before the roof, so the roof covers its base and it reads as
-    // passing through rather than sitting on top. Its own colour too — drawn
-    // in the roof's red it simply vanished into it.
-    const roofAt = last + 260;
-    svg.appendChild(el('rect', {
-      class: 'rf', x: H.w / 2 + 24, y: 20, width: 14, height: 42, rx: 1.5, fill: STACK,
-      style: `animation-delay:${roofAt + 120}ms`,
-    }));
-    svg.appendChild(el('path', {
-      class: 'rf', d: `M ${H.bx - 14} ${H.by + 2} L ${H.w / 2} 16 L ${H.bx + H.bw + 14} ${H.by + 2} Z`,
-      fill: ROOF, style: `animation-delay:${roofAt}ms`,
-    }));
-
-    const openAt = roofAt + 380;
-    const door = el('g', { class: 'op', style: `animation-delay:${openAt}ms` });
-    door.appendChild(el('path', {
-      d: `M ${H.w / 2 - 15} ${H.by + H.bh} v -28 a 15 15 0 0 1 30 0 v 28 Z`,
-      fill: WOOD,
-    }));
-    door.appendChild(el('circle', { cx: H.w / 2 + 9, cy: H.by + H.bh - 20, r: 2.2, fill: '#e8c33d' }));
-    svg.appendChild(door);
-
-    const win = el('g', { class: 'op', style: `animation-delay:${openAt + 140}ms` });
-    win.appendChild(el('rect', { x: H.bx + 16, y: H.by + 20, width: 26, height: 22, rx: 2,
-      fill: '#f5ecd0', stroke: WOOD, 'stroke-width': 2.4 }));
-    win.appendChild(el('path', { d: `M ${H.bx + 29} ${H.by + 20} v 22`, stroke: WOOD, 'stroke-width': 2 }));
-    svg.appendChild(win);
-
-    box.appendChild(svg);
-    // A frame's grace so the delays start from a painted page, not mid-layout.
-    requestAnimationFrame(() => box.classList.add('go'));
   }
 
   // ---- the film, as a stream -------------------------------------------
